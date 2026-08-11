@@ -59,7 +59,6 @@ function toggleAuthMode(mode) {
     const groupName = document.getElementById('group-fullname');
     const groupNumber = document.getElementById('group-number');
     const groupAddress = document.getElementById('group-address');
-    const groupVehicle = document.getElementById('group-vehicle');
     const btnSubmit = document.getElementById('btn-auth-submit');
     const switchDesc = document.getElementById('auth-switch-desc');
     const btnToggle = document.getElementById('btn-auth-toggle');
@@ -69,7 +68,6 @@ function toggleAuthMode(mode) {
         groupName.style.display = 'block';
         groupNumber.style.display = 'block';
         groupAddress.style.display = 'block';
-        groupVehicle.style.display = 'none';
 
         btnSubmit.textContent = '✨ Register & Sign In';
 
@@ -80,14 +78,12 @@ function toggleAuthMode(mode) {
         groupName.style.display = 'none';
         groupNumber.style.display = 'none';
         groupAddress.style.display = 'none';
-        groupVehicle.style.display = 'none';
         btnSubmit.textContent = 'Sign In';
 
         // Clear values
         document.getElementById('auth-fullname').value = '';
         document.getElementById('auth-number').value = '';
         document.getElementById('auth-address').value = '';
-        document.getElementById('auth-vehicle').value = '';
 
         if (switchDesc) switchDesc.textContent = "Don't have an account?";
         if (btnToggle) btnToggle.textContent = "Register";
@@ -102,7 +98,6 @@ function handleLoginSubmit(event) {
     const fullnameInput = document.getElementById('auth-fullname').value.trim();
     const numberInput = document.getElementById('auth-number').value.trim();
     const addressInput = document.getElementById('auth-address').value.trim();
-    const vehicleInput = document.getElementById('auth-vehicle').value.trim();
     const passwordInput = document.getElementById('auth-password').value.trim();
 
     // 1. Email/Username Validation (Required for both)
@@ -180,7 +175,7 @@ function handleLoginSubmit(event) {
     }
 
     // Save session and log in (redirects automatically)
-    loginSuccess(displayName, emailInput, selectedAuthRole, addressInput, vehicleInput, authMode === 'signup');
+    loginSuccess(displayName, emailInput, selectedAuthRole, addressInput, '', authMode === 'signup');
 }
 
 function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = false) {
@@ -219,21 +214,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Dynamic field toggle as the user types "driver" in Email/Username field (only in signup mode)
-    const emailField = document.getElementById('auth-email');
-    if (emailField) {
-        emailField.addEventListener('input', (e) => {
-            const val = e.target.value.toLowerCase();
-            const groupVehicle = document.getElementById('group-vehicle');
-            if (groupVehicle) {
-                if (authMode === 'signup' && val.includes('driver')) {
-                    groupVehicle.style.display = 'block';
-                } else {
-                    groupVehicle.style.display = 'none';
-                }
-            }
-        });
-    }
 });
 
 // Toggles password field text/password visibility dynamically
