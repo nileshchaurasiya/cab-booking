@@ -1,0 +1,14 @@
+{
+  "localStorage": {
+    "indiancabs_user_customer": "{\"name\":\"Rahul\",\"email\":\"rahul\",\"role\":\"customer\",\"address\":\"Surat, Gujarat\",\"vehicle\":\"\",\"justSignedUp\":false}",
+    "indiancabs_user_admin": "{\"name\":\"Admin\",\"email\":\"admin@cabs.com\",\"role\":\"admin\",\"address\":\"Surat, Gujarat\"}",
+    "indiancabs_wallet": "0",
+    "indiancabs_user_driver": "{\"name\":\"Rahul\",\"email\":\"rahul\",\"role\":\"driver\",\"address\":\"Surat, Gujarat\",\"vehicle\":\"GJ05NW3945\",\"justSignedUp\":false,\"vehicleModel\":\"swift\",\"vehiclePlate\":\"GJ05NW3945\",\"cabClass\":\"Splendor\"}",
+    "indiancabs_driver_trips_history": "[{\"pickup\":\"a\",\"dropoff\":\"b\",\"customer\":\"Rahul\",\"fare\":1809,\"timestamp\":1786451333035},{\"pickup\":\"a\",\"dropoff\":\"b\",\"customer\":\"Rahul\",\"fare\":1809,\"timestamp\":1786450418928},{\"pickup\":\"a\",\"dropoff\":\"b\",\"customer\":\"Rahul\",\"fare\":972,\"timestamp\":1786449827876},{\"pickup\":\"Adajan to Railway Station\",\"dropoff\":\"Railway Station\",\"customer\":\"Rahul Dave\",\"fare\":120},{\"pickup\":\"Vesu to Surat Airport\",\"dropoff\":\"Surat Airport\",\"customer\":\"Priya Mehta\",\"fare\":280}]",
+    "indiancabs_driver_online": "true",
+    "indiancabs_driver_earnings": "4590.00",
+    "indiancabs_admin_earnings": "510.00",
+    "indiancabs_driver_trips_count": "8"
+  },
+  "version": 44
+}

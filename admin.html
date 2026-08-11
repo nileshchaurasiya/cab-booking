@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Control Center</title>
+    <!-- Google Fonts for Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- Tailwind CSS v4 CDN Browser Runtime -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+        @custom-variant dark (&:where(.dark, .dark *));
+    </style>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: 'Outfit', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
+
+    <!-- Header / Navbar -->
+    <header class="border-b border-slate-200 dark:border-neutral-900 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div
+                    class="flex items-center justify-center w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 shadow-lg shadow-purple-500/5">
+                    <svg class="w-6 h-6 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 2 12 22Z" />
+                        <path d="M12 2V22" />
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
+                </div>
+                <div class="whitespace-nowrap">
+                    <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none whitespace-nowrap">Indian Cabs
+                    </h1>
+                    <span
+                        class="text-[10px] text-purple-400 font-semibold uppercase tracking-wider block mt-0.5 whitespace-nowrap">Admin
+                        Control Center</span>
+                </div>
+            </div>
+
+            <!-- Profile Summary and Logout -->
+            <div class="flex items-center gap-6">
+                <!-- Theme Switcher Button -->
+                <button id="theme-toggle-btn" onclick="toggleTheme()"
+                    class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-neutral-900 hover:bg-slate-200 dark:hover:bg-neutral-800 border border-slate-200 dark:border-neutral-800 transition-all cursor-pointer">
+                    <!-- Loaded dynamically -->
+                </button>
+                <div class="flex items-center gap-3 border-l border-slate-200 dark:border-neutral-900 pl-6">
+                    <div class="text-right hidden sm:block">
+                        <span class="text-xs font-bold text-slate-800 dark:text-white block" id="admin-name-display">System
+                            Administrator</span>
+                        <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium block">Active Session</span>
+                    </div>
+                    <div
+                        class="w-10 h-10 rounded-full bg-gradient-to-r from-purple-400/10 to-indigo-500/10 border border-purple-500/20 shadow-lg flex items-center justify-center text-lg">
+                        👨‍💻
+                    </div>
+                    <button onclick="logoutUser()" title="Logout"
+                        class="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all cursor-pointer">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Stats Overview Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Available Drivers Card -->
+            <div
+                class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-3xl p-6 flex items-center justify-between shadow-sm dark:shadow-xl transition-all duration-300">
+                <div>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block">Available
+                        Drivers</span>
+                    <strong class="text-3xl font-extrabold text-slate-800 dark:text-white mt-1 block" id="driver-count-display">0</strong>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl animate-pulse">
+                    🟢
+                </div>
+            </div>
+
+            <!-- Active Customers/Bookings Card -->
+            <div
+                class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-3xl p-6 flex items-center justify-between shadow-sm dark:shadow-xl transition-all duration-300">
+                <div>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block">Active
+                        Customers</span>
+                    <strong class="text-3xl font-extrabold text-slate-800 dark:text-white mt-1 block" id="customer-count-display">0</strong>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-2xl">
+                    📱
+                </div>
+            </div>
+
+            <!-- Admin Commission Earnings Card -->
+            <div
+                class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-3xl p-6 flex items-center justify-between shadow-sm dark:shadow-xl transition-all duration-300">
+                <div>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block">Admin Earnings
+                        (10%)</span>
+                    <strong class="text-3xl font-extrabold text-slate-800 dark:text-white mt-1 block"
+                        id="admin-earnings-display">₹0.00</strong>
+                </div>
+                <div
+                    class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-2xl">
+                    🪙
+                </div>
+            </div>
+        </div>
+
+        <!-- Roster and Bookings Panels Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Drivers Panel -->
+            <div class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4 transition-all duration-300">
+                <div class="flex justify-between items-center border-b border-slate-100 dark:border-neutral-900 pb-4">
+                    <h2 class="text-lg font-bold text-slate-800 dark:text-white">Driver Roster</h2>
+                    <span
+                        class="text-[10px] bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-neutral-400 border border-slate-200 dark:border-neutral-800 px-2 py-0.5 rounded font-mono">Live
+                        Sync</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-neutral-900 text-slate-400 dark:text-slate-500 font-bold">
+                                <th class="pb-3 pr-2">Driver</th>
+                                <th class="pb-3 pr-2">Vehicle</th>
+                                <th class="pb-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="driver-roster-body" class="divide-y divide-slate-100 dark:divide-neutral-900">
+                            <!-- Populated dynamically -->
+                            <tr>
+                                <td colspan="3" class="py-4 text-center text-slate-400 dark:text-slate-500">No registered drivers logged in
+                                    yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Active Bookings Panel -->
+            <div class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4 transition-all duration-300">
+                <div class="flex justify-between items-center border-b border-slate-100 dark:border-neutral-900 pb-4">
+                    <h2 class="text-lg font-bold text-slate-800 dark:text-white">Active Bookings</h2>
+                    <span
+                        class="text-[10px] bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-neutral-400 border border-slate-200 dark:border-neutral-800 px-2 py-0.5 rounded font-mono">Live
+                        Sync</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-neutral-900 text-slate-400 dark:text-slate-500 font-bold">
+                                <th class="pb-3 pr-2">Customer</th>
+                                <th class="pb-3 pr-2">Route</th>
+                                <th class="pb-3 pr-2 text-right">Fare</th>
+                                <th class="pb-3 text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookings-roster-body" class="divide-y divide-slate-100 dark:divide-neutral-900">
+                            <!-- Populated dynamically -->
+                            <tr>
+                                <td colspan="4" class="py-4 text-center text-slate-400 dark:text-slate-500">No active bookings in progress.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Completed Rides & Transactions History -->
+        <div class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4 mt-8 transition-all duration-300">
+            <div class="flex justify-between items-center border-b border-slate-100 dark:border-neutral-900 pb-4">
+                <h2 class="text-lg font-bold text-slate-800 dark:text-white">Transactions & Ride History</h2>
+                <span class="text-[10px] bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-neutral-400 border border-slate-200 dark:border-neutral-800 px-2 py-0.5 rounded font-mono">Archive</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-neutral-900 text-slate-400 dark:text-slate-500 font-bold">
+                            <th class="pb-3 pr-2">ID / Customer</th>
+                            <th class="pb-3 pr-2">Driver</th>
+                            <th class="pb-3 pr-2">Route Details</th>
+                            <th class="pb-3 pr-2 text-right">Fare</th>
+                            <th class="pb-3 pr-2 text-right">Commission (10%)</th>
+                            <th class="pb-3 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-roster-body" class="divide-y divide-slate-100 dark:divide-neutral-900">
+                        <tr>
+                            <td colspan="6" class="py-4 text-center text-slate-400 dark:text-slate-500">No past transactions found.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-neutral-900 py-6 text-center text-xs text-slate-500 dark:text-slate-600 bg-white dark:bg-neutral-950 mt-12 transition-colors duration-300">
+        <!-- <p>Indian Cabs Admin Control Console • System Active</p> -->
+    </footer>
+
+    <script src="mock-backend.js"></script>
+    <script src="admin.js"></script>
+</body>
+
+</html>
