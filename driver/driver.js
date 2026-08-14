@@ -101,7 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (e) {
         console.error("Session load error", e);
-        window.location.href = 'driver_login.html';
+        // Do NOT redirect here — redirecting causes an infinite loop if localStorage session
+        // still exists (driver_login.html would bounce right back to driver.html).
     }
 });
 
@@ -587,7 +588,8 @@ function saveVehicleDetails(event) {
 
     const user = Backend.getCurrentDriver();
     if (!user) {
-        window.location.href = 'driver_login.html';
+        showToast("Session expired. Please log in again.");
+        setTimeout(() => { window.location.href = 'driver_login.html'; }, 1500);
         return;
     }
 

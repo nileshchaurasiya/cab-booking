@@ -208,12 +208,26 @@ function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = 
 
 // On page load, check for active session & add email input listener
 document.addEventListener('DOMContentLoaded', () => {
+    // If a customer is already logged in, skip to their dashboard
     const savedCustomer = Backend.getCurrentCustomer();
     if (savedCustomer) {
         window.location.href = 'customer.html';
         return;
     }
 
+    // If a driver is already logged in, send them to the driver portal (not customer login)
+    const savedDriver = Backend.getCurrentDriver();
+    if (savedDriver) {
+        window.location.href = '../driver/driver.html';
+        return;
+    }
+
+    // If an admin is already logged in, send them to the admin panel
+    const savedAdmin = localStorage.getItem('indiancabs_user_admin');
+    if (savedAdmin) {
+        window.location.href = '../admin/admin.html';
+        return;
+    }
 });
 
 // Toggles password field text/password visibility dynamically
