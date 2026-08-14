@@ -197,9 +197,9 @@ function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = 
         if (resolvedRole === 'customer') {
             window.location.href = 'customer.html';
         } else if (resolvedRole === 'driver') {
-            window.location.href = 'driver.html';
+            window.location.href = '../driver/driver.html';
         } else if (resolvedRole === 'admin') {
-            window.location.href = 'admin.html';
+            window.location.href = '../admin/admin.html';
         }
     } catch (e) {
         showToast(e.message);

@@ -43,10 +43,12 @@
     </style>
 </head>
 
-<body class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
+<body
+    class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
 
     <!-- Header / Navbar -->
-    <header class="border-b border-slate-200 dark:border-neutral-900 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
+    <header
+        class="border-b border-slate-200 dark:border-neutral-900 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
             <!-- Brand Logo -->
             <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
@@ -62,7 +64,8 @@
                     </svg>
                 </div>
                 <div class="whitespace-nowrap">
-                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none whitespace-nowrap">
+                    <h1
+                        class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none whitespace-nowrap">
                         Indian Cabs</h1>
                     <span
                         class="text-[9px] sm:text-[10px] text-sky-400 font-semibold uppercase tracking-wider block mt-0.5 whitespace-nowrap">Customer
@@ -74,7 +77,7 @@
             <div class="flex items-center gap-2 sm:gap-6">
                 <!-- Theme Switcher Button -->
                 <button id="theme-toggle-btn" onclick="toggleTheme()"
-                    class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-neutral-900 hover:bg-slate-200 dark:hover:bg-neutral-800 border border-slate-200 dark:border-neutral-800 transition-all cursor-pointer shrink-0">
+                    class="xl:h-[40px] h-[32px] rounded-full bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center gap-1.5 transition-all duration-300 hover:bg-slate-200 dark:hover:bg-neutral-800 px-3.5 focus:outline-none cursor-pointer hover:scale-105 active:scale-95 shrink-0 shadow-sm">
                     <!-- Loaded dynamically -->
                 </button>
 
@@ -87,9 +90,11 @@
                 </button>
 
                 <!-- User Profile Summary -->
-                <div class="flex items-center gap-2 sm:gap-3 border-l border-slate-200 dark:border-neutral-900 pl-3 sm:pl-6">
+                <div
+                    class="flex items-center gap-2 sm:gap-3 border-l border-slate-200 dark:border-neutral-900 pl-3 sm:pl-6">
                     <div class="text-right hidden md:block">
-                        <span class="text-xs font-bold text-slate-800 dark:text-white block" id="customer-name-display">--</span>
+                        <span class="text-xs font-bold text-slate-800 dark:text-white block"
+                            id="customer-name-display">--</span>
                         <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium block"
                             id="customer-address-display">--</span>
                     </div>
@@ -117,16 +122,17 @@
     </header>
 
     <!-- Main Dashboard Grid -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <main class="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8">
 
             <!-- LEFT COLUMN: BOOKING INTERFACE (lg:col-span-6) -->
             <div class="lg:col-span-6 space-y-6">
 
                 <!-- booking form container -->
                 <div id="booking-form-card"
-                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-6 shadow-sm dark:shadow-xl transition-all duration-300">
-                    <h2 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Book Your Ride</h2>
+                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm dark:shadow-xl transition-all duration-300">
+                    <h2 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Book Your Ride
+                    </h2>
                     <p class="text-xs text-neutral-400 mb-6">Instantly compare and request a vehicle in your area</p>
 
                     <form id="cab-booking-form" onsubmit="handleCabRequest(event)" class="space-y-4">
@@ -165,29 +171,29 @@
                             <label
                                 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Select
                                 Vehicle Class</label>
-                            <div class="grid grid-cols-3 gap-3" id="vehicle-type-selector">
+                            <div class="grid grid-cols-3 gap-2 sm:gap-3" id="vehicle-type-selector">
                                 <!-- Splendor Bike -->
-                                <button type="button" onclick="selectCabClass('Splendor', 8)" id="cab-splendor"
-                                    class="flex flex-col items-center justify-center p-3 bg-slate-100 dark:bg-slate-950 border border-sky-500/50 hover:border-sky-500 rounded-2xl transition-all cursor-pointer text-center group ring-2 ring-sky-500/20">
-                                    <img src="splendor.png" alt="Splendor Bike"
+                                <button type="button" onclick="selectCabClass('Car', 50)" id="cab-splendor"
+                                    class="flex flex-col items-center justify-center p-3 bg-blue-50/70 dark:bg-slate-900 border border-sky-500 rounded-2xl transition-all cursor-pointer text-center group ring-2 ring-sky-500/30">
+                                    <img src="../assets/car.png" alt="Car"
                                         class="w-12 h-8 object-cover rounded-lg border border-slate-200 dark:border-neutral-800 group-hover:border-sky-500/50 mb-1.5 transition-all group-hover:scale-105">
-                                    <span class="text-xs font-bold text-slate-800 dark:text-white block">Splendor</span>
-                                    <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹8/km</span>
+                                    <span class="text-xs font-bold text-slate-800 dark:text-white block">Car</span>
+                                    <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹50/km</span>
                                 </button>
                                 <!-- SUV -->
-                                <button type="button" onclick="selectCabClass('SUV', 22)" id="cab-suv"
-                                    class="flex flex-col items-center justify-center p-3 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-800 hover:border-sky-500 rounded-2xl transition-all cursor-pointer text-center group">
-                                    <span class="text-lg mb-1 group-hover:scale-110 transition-transform">🚐</span>
-                                    <span class="text-xs font-bold text-slate-800 dark:text-white block">SUV</span>
-                                    <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹22/km</span>
+                                <button type="button" onclick="selectCabClass('Auto Rickshaw', 30)" id="cab-suv"
+                                    class="flex flex-col items-center justify-center p-3 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500 rounded-2xl transition-all cursor-pointer text-center group">
+                                    <span class="text-lg mb-1 group-hover:scale-110 transition-transform">🛺</span>
+                                    <span class="text-xs font-bold text-slate-900 dark:text-white block">Auto
+                                        Rickshaw</span>
+                                    <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹30/km</span>
                                 </button>
                                 <!-- Defender VIP -->
-                                <button type="button" onclick="selectCabClass('Defender', 100)" id="cab-defender"
-                                    class="flex flex-col items-center justify-center p-3 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-800 hover:border-sky-500 rounded-2xl transition-all cursor-pointer text-center group">
-                                    <img src="defender.png" alt="Defender VIP"
-                                        class="w-12 h-8 object-cover rounded-lg border border-slate-200 dark:border-neutral-800 group-hover:border-amber-500/50 mb-1.5 transition-all group-hover:scale-105">
-                                    <span class="text-xs font-bold text-slate-800 dark:text-white block">Defender</span>
-                                    <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹100/km</span>
+                                <button type="button" onclick="selectCabClass('Bike', 15)" id="cab-defender"
+                                    class="flex flex-col items-center justify-center p-3 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500 rounded-2xl transition-all cursor-pointer text-center group">
+                                    <span class="text-lg mb-1 group-hover:scale-110 transition-transform">🏍️</span>
+                                    <span class="text-xs font-bold text-slate-800 dark:text-white block">Bike</span>
+                                    <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹15/km</span>
                                 </button>
                             </div>
                         </div>
@@ -196,22 +202,25 @@
                         <div
                             class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 flex items-center justify-between text-xs mt-2 transition-colors duration-300">
                             <div>
-                                <span class="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated
+                                <span
+                                    class="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated
                                     Fare</span>
                                 <strong class="text-base text-sky-400 mt-0.5 block"
                                     id="estimate-fare-display">₹180.00</strong>
                             </div>
                             <div class="text-right">
-                                <span class="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Est.
+                                <span
+                                    class="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Est.
                                     Distance</span>
-                                <strong class="text-xs text-slate-800 dark:text-white mt-0.5 block" id="estimate-dist-display">15.0
+                                <strong class="text-xs text-slate-800 dark:text-white mt-0.5 block"
+                                    id="estimate-dist-display">15.0
                                     km</strong>
                             </div>
                         </div>
 
                         <!-- Submit Booking Request Button -->
                         <button type="submit" id="btn-submit-booking"
-                            class="w-full py-3.5 px-4 rounded-2xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-4">
+                            class="w-full py-3.5 px-4 rounded-2xl font-bold bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-4">
                             🚕 Book Cab Now
                         </button>
                     </form>
@@ -219,20 +228,22 @@
 
                 <!-- ACTIVE RIDE STATUS BLOCK (Hidden by default, shown when driver details simulated) -->
                 <div id="booking-tracking-card" style="display: none;"
-                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-6 shadow-sm dark:shadow-xl relative overflow-hidden transition-all duration-300">
+                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm dark:shadow-xl relative overflow-hidden transition-all duration-300">
                     <!-- Top Gradient Line -->
                     <div
                         class="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-sky-400 via-indigo-500 to-emerald-400">
                     </div>
 
-                    <h2 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Your Driver is Arriving</h2>
+                    <h2 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Your Driver is
+                        Arriving</h2>
                     <p class="text-xs text-neutral-400 mb-6">Keep track of your current driver match status below</p>
 
                     <!-- Matching spinner / driver card -->
                     <div class="space-y-5">
 
                         <!-- Driver Details Panel -->
-                        <div class="flex items-center gap-4 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 transition-colors duration-300">
+                        <div
+                            class="flex items-center gap-4 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 transition-colors duration-300">
                             <div
                                 class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-xl shrink-0 overflow-hidden">
                                 <span id="tracker-driver-avatar">👨‍✈️</span>
@@ -241,13 +252,15 @@
                             </div>
                             <div class="flex-grow">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="text-sm font-bold text-slate-800 dark:text-white" id="tracker-driver-name">Rajesh Kumar</h3>
+                                    <h3 class="text-sm font-bold text-slate-800 dark:text-white"
+                                        id="tracker-driver-name">Rajesh Kumar</h3>
                                     <span
                                         class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                         ★ 4.9
                                     </span>
                                 </div>
-                                <div class="flex items-center justify-between mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                <div
+                                    class="flex items-center justify-between mt-1 text-xs text-slate-500 dark:text-slate-400">
                                     <span id="tracker-vehicle-name">Toyota Camry</span>
                                     <span class="font-mono text-slate-800 dark:text-white font-bold"
                                         id="tracker-vehicle-number">MH12AB1234</span>
@@ -256,26 +269,28 @@
                         </div>
 
                         <!-- Arrival progress bar status -->
-                        <div class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3 transition-colors duration-300">
+                        <div
+                            class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3 transition-colors duration-300">
                             <div class="flex justify-between items-center text-xs">
                                 <span class="text-slate-500 dark:text-slate-400">Status: <strong class="text-sky-400"
                                         id="tracker-ride-status">Driver arriving in 3 mins</strong></span>
-                                <span class="font-bold text-slate-800 dark:text-white" id="tracker-progress-percentage">25%</span>
+                                <span class="font-bold text-slate-800 dark:text-white"
+                                    id="tracker-progress-percentage">25%</span>
                             </div>
                             <div class="w-full bg-slate-200 dark:bg-neutral-900 h-2 rounded-full overflow-hidden">
                                 <div class="bg-gradient-to-r from-sky-400 to-indigo-500 h-full rounded-full transition-all duration-700"
                                     id="tracker-progress-bar" style="width: 25%"></div>
                             </div>
-                            <div class="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500">
-                                <span>Requested</span>
-                                <span>Pickup</span>
-                                <span>Arrived</span>
+                            <div
+                                class="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500">
+                                <span>Ride start</span>
+                                <span>Trip end </span>
                             </div>
                         </div>
 
                         <!-- Action Buttons -->
                         <div class="grid grid-cols-2 gap-3 mt-4">
-                            <button onclick="cancelCurrentBooking()"
+                            <button onclick="cancelCurrentBooking()" id="btn-cancel-ride"
                                 class="w-full py-3 px-4 rounded-xl font-bold bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-xs">
                                 🚫 Cancel Ride
                             </button>
@@ -293,9 +308,46 @@
             <div class="lg:col-span-6 space-y-6">
 
                 <!-- RIDE HISTORY LIST -->
-                <div class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-6 shadow-sm dark:shadow-xl transition-all duration-300">
-                    <h2 class="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Your Trip History</h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">View your past completed bookings and invoice details</p>
+                <div
+                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm dark:shadow-xl transition-all duration-300">
+                    
+                    <!-- Tabs -->
+                    <div class="flex border-b border-slate-100 dark:border-neutral-900 pb-3 mb-4 gap-4 text-xs font-bold">
+                        <button id="tab-trips" onclick="switchHistoryTab('trips')"
+                            class="pb-1.5 border-b-2 border-sky-500 text-sky-500 transition-all cursor-pointer">
+                            🚗 Trips Log
+                        </button>
+                        <button id="tab-wallet" onclick="switchHistoryTab('wallet')"
+                            class="pb-1.5 border-b-2 border-transparent text-slate-450 hover:text-slate-200 transition-all cursor-pointer">
+                            🪙 Wallet Transactions
+                        </button>
+                    </div>
+
+                    <!-- Trips Header Block -->
+                    <div id="trips-header-block" class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                        <div>
+                            <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Your
+                                Trip History</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">View your past completed bookings and
+                                invoice details</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button id="cust-filter-all" onclick="setCustomerHistoryFilter('all')"
+                                class="text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-sky-500 border-sky-500 text-white">All</button>
+                            <button id="cust-filter-completed" onclick="setCustomerHistoryFilter('completed')"
+                                class="text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-transparent border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-slate-400">Completed</button>
+                            <button id="cust-filter-cancelled" onclick="setCustomerHistoryFilter('cancelled')"
+                                class="text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-transparent border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-slate-400">Cancelled</button>
+                        </div>
+                    </div>
+
+                    <!-- Wallet Header Block -->
+                    <div id="wallet-header-block" style="display: none;" class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                        <div>
+                            <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Wallet Transactions</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">View your wallet deposits, payments, and refunds</p>
+                        </div>
+                    </div>
 
                     <!-- History Listing Container -->
                     <div class="space-y-3" id="ride-history-list">
@@ -305,8 +357,10 @@
                             <div class="flex items-center gap-3">
                                 <span class="text-xl">✅</span>
                                 <div>
-                                    <h4 class="text-xs font-bold text-slate-800 dark:text-white">Surat Airport to City Center</h4>
-                                    <span class="text-[9px] text-slate-500 dark:text-slate-400">August 9, 2026 • Sedan Cab (Driver:
+                                    <h4 class="text-xs font-bold text-slate-800 dark:text-white">Surat Airport to City
+                                        Center</h4>
+                                    <span class="text-[9px] text-slate-500 dark:text-slate-400">August 9, 2026 • Sedan
+                                        Cab (Driver:
                                         Rajesh)</span>
                                 </div>
                             </div>
@@ -323,8 +377,10 @@
                             <div class="flex items-center gap-3">
                                 <span class="text-xl">✅</span>
                                 <div>
-                                    <h4 class="text-xs font-bold text-slate-800 dark:text-white">Railway Station to Adajan</h4>
-                                    <span class="text-[9px] text-slate-500 dark:text-slate-400">August 8, 2026 • Splendor Bike (Driver:
+                                    <h4 class="text-xs font-bold text-slate-800 dark:text-white">Railway Station to
+                                        Adajan</h4>
+                                    <span class="text-[9px] text-slate-500 dark:text-slate-400">August 8, 2026 •
+                                        Splendor Bike (Driver:
                                         Suresh)</span>
                                 </div>
                             </div>
@@ -334,6 +390,11 @@
                                     class="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Wallet History Listing Container -->
+                    <div class="space-y-3" id="wallet-history-list" style="display: none;">
+                        <!-- Will be populated dynamically -->
                     </div>
                 </div>
 
@@ -349,7 +410,7 @@
     <div id="recharge-modal" style="display: none;"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
         <div
-            class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-800 rounded-[2rem] max-w-md w-full p-8 shadow-sm dark:shadow-2xl relative transition-all duration-300">
+            class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-800 rounded-2xl sm:rounded-[2rem] max-w-md w-full p-5 sm:p-8 shadow-sm dark:shadow-2xl relative transition-all duration-300">
             <!-- Close Button -->
             <button onclick="closeRechargeModal()"
                 class="absolute top-6 right-6 text-neutral-500 hover:text-slate-300 dark:hover:text-white cursor-pointer transition-colors text-lg">
@@ -359,18 +420,21 @@
             <!-- Modal Title -->
             <div class="text-center mb-6">
                 <div
-                    class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-lg shadow-amber-500/5 mb-4">
+                    class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 shadow-lg shadow-sky-500/5 mb-4">
                     <span class="text-3xl select-none leading-none">🪙</span>
                 </div>
                 <h3 class="text-xl font-extrabold text-slate-800 dark:text-white">Recharge Wallet</h3>
-                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Add funds to your Indian Cabs wallet instantly.</p>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Add funds to your Indian Cabs wallet
+                    instantly.</p>
             </div>
 
             <!-- Form -->
             <form onsubmit="submitRecharge(event)" class="space-y-4">
                 <!-- Amount Options -->
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Quick Select
+                    <label
+                        class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Quick
+                        Select
                         Amount</label>
                     <div class="grid grid-cols-3 gap-2">
                         <button type="button" onclick="selectRechargeAmount(100)"
@@ -384,9 +448,10 @@
 
                 <!-- Custom Amount -->
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Enter
+                    <label
+                        class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Enter
                         Custom Amount (₹)</label>
-                    <input type="number" id="recharge-amount-input" required min="10" max="10000" placeholder="e.g. 250"
+                    <input type="number" id="recharge-amount-input" required min="10" max="5000" placeholder="e.g. 250"
                         class="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-600 text-xs focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all">
                 </div>
 
@@ -403,7 +468,7 @@
     <div id="profile-modal" style="display: none;"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
         <div
-            class="relative w-full max-w-md bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-800 rounded-[2rem] p-8 shadow-sm dark:shadow-2xl transition-all duration-300">
+            class="relative w-full max-w-md bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-800 rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 shadow-sm dark:shadow-2xl transition-all duration-300">
             <!-- Close Button -->
             <button onclick="closeProfileModal()"
                 class="absolute top-6 right-6 text-neutral-500 hover:text-slate-300 dark:hover:text-white cursor-pointer transition-colors text-lg">
@@ -417,12 +482,14 @@
                     👤
                 </div>
                 <h3 class="text-xl font-extrabold text-slate-800 dark:text-white">Profile Details</h3>
-                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Your registered user account profile information.</p>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Your registered user account profile
+                    information.</p>
             </div>
 
             <!-- Details Roster -->
             <div class="space-y-4 text-sm">
-                <div class="bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3">
+                <div
+                    class="bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3">
                     <div class="flex justify-between border-b border-slate-200/50 dark:border-neutral-900/60 pb-2">
                         <span class="text-slate-500 dark:text-slate-400 text-xs">Full Name</span>
                         <strong class="text-slate-800 dark:text-white text-xs" id="profile-name">--</strong>
@@ -445,15 +512,14 @@
 
             <!-- Close Button Footer -->
             <button onclick="closeProfileModal()"
-                class="w-full py-3.5 px-4 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-6 text-xs">
+                class="w-full py-3.5 px-4 rounded-xl font-bold bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-6 text-xs">
                 Close
             </button>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="mock-backend.js"></script>
-    <script src="customer.js"></script>
+    <script src="../shared/mock-backend.js?v=6"></script>
+    <script src="customer.js?v=5"></script>
 </body>
 
 </html>

@@ -2,8 +2,8 @@
    Indian Cabs - Customer Booking & Simulation Dashboard Script
    ========================================================================== */
 
-let currentCabClass = 'Splendor';
-let currentRatePerKm = 8;
+let currentCabClass = 'Car';
+let currentRatePerKm = 50;
 let currentDistance = 0; // Default to 0
 let walletAmount = 2000.00;
 let currentFare = 0; // Default to 0
@@ -146,6 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Render updated trips history list & wallet history
+        renderCustomerTripsHistory();
+        renderWalletHistory();
+
     } catch (e) {
         console.error("Session load error", e);
         window.location.href = 'login.html';
@@ -162,10 +166,16 @@ function selectCabClass(className, ratePerKm) {
     classes.forEach(c => {
         const btn = document.getElementById(`cab-${c.toLowerCase()}`);
         if (btn) {
-            if (c === className) {
-                btn.className = "flex flex-col items-center justify-center p-3 bg-slate-950 border border-sky-500 rounded-2xl transition-all cursor-pointer text-center group ring-2 ring-sky-500/20";
+            let isMatched = false;
+            if (c === 'Splendor' && className === 'Car') isMatched = true;
+            else if (c === 'SUV' && className === 'Auto Rickshaw') isMatched = true;
+            else if (c === 'Defender' && className === 'Bike') isMatched = true;
+            else if (c === className) isMatched = true;
+
+            if (isMatched) {
+                btn.className = "flex flex-col items-center justify-center p-3 bg-blue-50/70 dark:bg-slate-900 border border-sky-500 rounded-2xl transition-all cursor-pointer text-center group ring-2 ring-sky-500/30";
             } else {
-                btn.className = "flex flex-col items-center justify-center p-3 bg-slate-950 border border-neutral-800 hover:border-sky-500 rounded-2xl transition-all cursor-pointer text-center group";
+                btn.className = "flex flex-col items-center justify-center p-3 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500 rounded-2xl transition-all cursor-pointer text-center group";
             }
         }
     });
@@ -254,7 +264,7 @@ function handleCabRequest(event) {
 
             // Start polling localStorage for driver status updates
             startBookingPolling(pickupVal, dropoffVal);
-        } catch(e) {
+        } catch (e) {
             showToast(e.message);
             btnSubmit.disabled = false;
             btnSubmit.innerHTML = `🚕 Book Cab Now`;
@@ -270,6 +280,8 @@ function startBookingPolling(pickup, dropoff) {
 
     currentTrackerProgress = 10;
 
+    let hasShownDriverUnavailable = false;
+
     bookingProgressInterval = setInterval(() => {
         let booking = Backend.getActiveBooking();
 
@@ -283,8 +295,18 @@ function startBookingPolling(pickup, dropoff) {
             updateTrackerVehicleImage(booking);
 
             if (booking.status === 'cancelled') {
-                cancelCurrentBookingLocally(true, "Driver cancelled the booking request.");
+                cancelCurrentBookingLocally(true, "Booking was cancelled.");
                 return;
+            }
+
+            if (booking.declinedBy && booking.declinedBy.length > 0) {
+                if (!hasShownDriverUnavailable) {
+                    showToast("Driver is not available. Please wait 2 to 3 minutes, ride is getting ready...");
+                    hasShownDriverUnavailable = true;
+                }
+                document.getElementById('tracker-ride-status').textContent = "Searching for another driver...";
+            } else {
+                hasShownDriverUnavailable = false;
             }
 
             let targetProgress = 10;
@@ -300,6 +322,29 @@ function startBookingPolling(pickup, dropoff) {
                     currentTrackerProgress += 1.5; // slow crawl (takes ~30s to reach 40%)
                 }
                 statusMessage = currentTrackerProgress < 38 ? "Driver accepted! Arriving at pickup..." : "Driver arrived! Waiting for driver to start ride...";
+                // Prevent cancellation once ride is accepted/started
+                const cancelBtn = document.getElementById('btn-cancel-ride');
+                if (cancelBtn) {
+                    cancelBtn.style.display = 'none';
+                }
+            }
+
+            if (booking.status === 'pending') {
+                // Booking was reset back to pending (driver cancelled after accepting)
+                currentTrackerProgress = 10;
+                document.getElementById('tracker-driver-name').textContent = 'Matching...';
+                document.getElementById('tracker-vehicle-name').textContent = 'Searching for nearest driver...';
+                document.getElementById('tracker-vehicle-number').textContent = '...';
+                // Restore cancel button
+                const cancelBtn = document.getElementById('btn-cancel-ride');
+                if (cancelBtn) {
+                    cancelBtn.style.display = 'block';
+                    cancelBtn.disabled = false;
+                }
+                if (!hasShownDriverUnavailable && booking.declinedBy && booking.declinedBy.length > 0) {
+                    showToast("Driver cancelled the accepted ride. Searching for another driver...");
+                    hasShownDriverUnavailable = true;
+                }
             }
 
             if (booking.status === 'started') {
@@ -311,11 +356,16 @@ function startBookingPolling(pickup, dropoff) {
                     currentTrackerProgress += 1.0; // slow crawl (takes ~82s to reach 95%)
                 }
                 statusMessage = currentTrackerProgress < 90 ? "Ride started! En route to destination..." : "Almost there! Arriving soon...";
+
+                // Prevent cancellation once ride is accepted/started
+                const cancelBtn = document.getElementById('btn-cancel-ride');
+                if (cancelBtn) {
+                    cancelBtn.style.display = 'none';
+                }
             }
 
             if (booking.status === 'completed') {
                 clearInterval(bookingProgressInterval);
-                addRideToHistory(pickup, dropoff, booking.driverName, booking.fare);
                 showToast("Trip completed! Thank you for riding.", "success");
 
                 // Clear active booking status in Backend
@@ -327,6 +377,10 @@ function startBookingPolling(pickup, dropoff) {
                     walletAmount = customer.wallet;
                     document.getElementById('wallet-balance').textContent = walletAmount.toFixed(2);
                 }
+
+                // Render updated trips history list & wallet history
+                renderCustomerTripsHistory();
+                renderWalletHistory();
 
                 // Return back to booking form
                 resetDashboardToForm();
@@ -355,6 +409,13 @@ function resetDashboardToForm() {
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = `🚕 Book Cab Now`;
     }
+
+    const cancelBtn = document.getElementById('btn-cancel-ride');
+    if (cancelBtn) {
+        cancelBtn.style.display = 'block';
+        cancelBtn.disabled = false;
+        cancelBtn.innerHTML = "🚫 Cancel Ride";
+    }
 }
 
 // Clean up booking details locally
@@ -372,6 +433,8 @@ function cancelCurrentBookingLocally(shouldRefund, toastMessage) {
     }
 
     resetDashboardToForm();
+    renderCustomerTripsHistory();
+    renderWalletHistory();
     showToast(toastMessage);
 }
 
@@ -381,6 +444,10 @@ function cancelCurrentBookingLocally(shouldRefund, toastMessage) {
 function cancelCurrentBooking() {
     const booking = Backend.getActiveBooking();
     if (booking) {
+        if (booking.status === 'started' || booking.status === 'accepted') {
+            showToast("Cannot cancel the ride as it has already been accepted.", "error");
+            return;
+        }
         Backend.cancelActiveBooking(booking.id, 'customer');
     }
     cancelCurrentBookingLocally(true, "Booking cancelled successfully. Amount refunded.");
@@ -390,40 +457,189 @@ function shareTrackingStatus() {
     showToast("Tracking link copied to clipboard!", "success");
 }
 
-// Add row to ride history table dynamically
-function addRideToHistory(pickup, dropoff, driver, fare) {
+// Renders customer trips history list dynamically from database
+let customerHistoryFilter = 'all';
+
+function setCustomerHistoryFilter(filter) {
+    customerHistoryFilter = filter;
+    const filters = ['all', 'completed', 'cancelled'];
+    filters.forEach(f => {
+        const btn = document.getElementById(`cust-filter-${f}`);
+        if (!btn) return;
+        if (f === filter) {
+            btn.className = `text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
+                f === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' :
+                f === 'cancelled' ? 'bg-rose-500 border-rose-500 text-white' :
+                'bg-sky-500 border-sky-500 text-white'
+            }`;
+        } else {
+            btn.className = 'text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-transparent border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-slate-400';
+        }
+    });
+    renderCustomerTripsHistory();
+}
+
+function renderCustomerTripsHistory() {
     const container = document.getElementById('ride-history-list');
     if (!container) return;
 
-    const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const user = Backend.getCurrentCustomer();
+    if (!user) return;
 
-    const row = document.createElement('div');
-    row.className = "flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 hover:border-slate-300 dark:hover:border-neutral-800 transition-all";
-    row.innerHTML = `
-        <div class="flex items-center gap-3">
-            <span class="text-xl">✅</span>
-            <div>
-                <h4 class="text-xs font-bold text-slate-800 dark:text-white">${pickup} to ${dropoff}</h4>
-                <span class="text-[9px] text-slate-500 dark:text-slate-400">${today} • ${currentCabClass} Cab (Driver: ${driver})</span>
-            </div>
-        </div>
-        <div class="text-right">
-            <strong class="text-xs font-bold text-sky-400 block">₹${fare.toFixed(2)}</strong>
-            <span class="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>
-        </div>
-    `;
+    try {
+        const allHistory = user.tripsHistory || [];
+        const historyList = customerHistoryFilter === 'all'
+            ? allHistory
+            : allHistory.filter(t => {
+                const isCompleted = t.status === 'Completed' || !t.status;
+                return customerHistoryFilter === 'completed' ? isCompleted : !isCompleted;
+            });
+        let html = '';
 
-    // Prepend to top of list
-    container.insertBefore(row, container.firstChild);
+        historyList.forEach(trip => {
+            const dateStr = trip.timestamp ? new Date(trip.timestamp).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Recently';
+
+            const isCompleted = trip.status === 'Completed' || !trip.status;
+            const statusBadge = isCompleted
+                ? `<span class="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>`
+                : `<span class="text-[8px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase font-semibold">Cancelled</span>`;
+
+            const icon = isCompleted ? '✅' : '❌';
+            const textClass = isCompleted ? 'text-sky-400' : 'text-rose-400';
+
+            html += `
+                <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 hover:border-slate-300 dark:hover:border-neutral-800 transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">${icon}</span>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-800 dark:text-white">${trip.pickup} to ${trip.dropoff}</h4>
+                            <span class="text-[9px] text-slate-500 dark:text-slate-400">${dateStr} • Driver: ${trip.driver || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <strong class="text-xs font-bold ${textClass} block">₹${trip.fare.toFixed(2)}</strong>
+                        ${statusBadge}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html || `<div class="text-center text-xs text-neutral-500 py-6">No rides booked yet.</div>`;
+    } catch (e) {
+        console.error("Trip history render error", e);
+    }
+}
+
+let activeHistoryTab = 'trips'; // 'trips' | 'wallet'
+
+function switchHistoryTab(tabName) {
+    activeHistoryTab = tabName;
+    const tabTrips = document.getElementById('tab-trips');
+    const tabWallet = document.getElementById('tab-wallet');
+    const tripsHeader = document.getElementById('trips-header-block');
+    const walletHeader = document.getElementById('wallet-header-block');
+    const tripsList = document.getElementById('ride-history-list');
+    const walletList = document.getElementById('wallet-history-list');
+
+    if (!tabTrips || !tabWallet || !tripsHeader || !walletHeader || !tripsList || !walletList) return;
+
+    if (tabName === 'trips') {
+        // Tab UI
+        tabTrips.className = "pb-1.5 border-b-2 border-sky-500 text-sky-500 transition-all cursor-pointer";
+        tabWallet.className = "pb-1.5 border-b-2 border-transparent text-slate-450 hover:text-slate-200 transition-all cursor-pointer";
+        // Sections
+        tripsHeader.style.display = 'flex';
+        walletHeader.style.display = 'none';
+        tripsList.style.display = 'block';
+        walletList.style.display = 'none';
+    } else {
+        // Tab UI
+        tabTrips.className = "pb-1.5 border-b-2 border-transparent text-slate-450 hover:text-slate-200 transition-all cursor-pointer";
+        tabWallet.className = "pb-1.5 border-b-2 border-sky-500 text-sky-500 transition-all cursor-pointer";
+        // Sections
+        tripsHeader.style.display = 'none';
+        walletHeader.style.display = 'flex';
+        tripsList.style.display = 'none';
+        walletList.style.display = 'block';
+        
+        // Render
+        renderWalletHistory();
+    }
+}
+
+function renderWalletHistory() {
+    const container = document.getElementById('wallet-history-list');
+    if (!container) return;
+
+    const user = Backend.getCurrentCustomer();
+    if (!user) return;
+
+    try {
+        const historyList = user.walletHistory || [];
+        let html = '';
+
+        historyList.forEach(tx => {
+            const dateStr = tx.date || (tx.timestamp ? new Date(tx.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently');
+            
+            let statusBadge = '';
+            let icon = '🪙';
+            let textClass = 'text-slate-800 dark:text-white';
+            let prefix = '';
+
+            if (tx.type === 'recharge') {
+                statusBadge = `<span class="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Deposit</span>`;
+                icon = '📥';
+                textClass = 'text-emerald-400';
+                prefix = '+ ';
+            } else if (tx.type === 'ride_payment') {
+                statusBadge = `<span class="text-[8px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 uppercase font-semibold">Payment</span>`;
+                icon = '📤';
+                textClass = 'text-rose-400';
+                prefix = '- ';
+            } else if (tx.type === 'refund') {
+                statusBadge = `<span class="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Refund</span>`;
+                icon = '🔄';
+                textClass = 'text-emerald-400';
+                prefix = '+ ';
+            }
+
+            html += `
+                <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 hover:border-slate-300 dark:hover:border-neutral-800 transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">${icon}</span>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-800 dark:text-white">${tx.description || 'Wallet Transaction'}</h4>
+                            <span class="text-[9px] text-slate-500 dark:text-slate-400">${dateStr}</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <strong class="text-xs font-bold ${textClass} block">${prefix}₹${Math.abs(tx.amount).toFixed(2)}</strong>
+                        ${statusBadge}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html || `<div class="text-center text-xs text-neutral-500 py-6">No wallet transactions found.</div>`;
+    } catch (e) {
+        console.error("Wallet history render error", e);
+    }
 }
 
 function logoutUser() {
-    Backend.logout('customer');
-    window.location.href = 'login.html';
+    if (confirm("Are you sure you want to log out from this account?")) {
+        Backend.logout('customer');
+        window.location.href = 'login.html';
+    }
 }
 
 // Wallet Recharge Logic
 function openRechargeModal() {
+    const customer = Backend.getCurrentCustomer();
+    if (customer && customer.wallet >= 2000) {
+        showToast("₹2000 is maximum capacity. You cannot add more money on it.");
+        return;
+    }
     const modal = document.getElementById('recharge-modal');
     if (modal) {
         modal.style.display = 'flex';
@@ -452,18 +668,34 @@ function submitRecharge(event) {
     if (!input) return;
 
     const amount = parseFloat(input.value);
-    if (isNaN(amount) || amount <= 0) {
-        showToast("Please enter a valid amount to recharge.");
+    if (isNaN(amount) || amount < 10) {
+        showToast("Minimum recharge amount is ₹10.");
+        return;
+    }
+
+    if (amount > 5000) {
+        showToast("Maximum recharge amount is ₹5000.");
         return;
     }
 
     const customer = Backend.getCurrentCustomer();
     if (customer) {
-        walletAmount = Backend.rechargeWallet(customer.email, amount);
-        document.getElementById('wallet-balance').textContent = walletAmount.toFixed(2);
-        showToast(`Successfully recharged ₹${amount.toFixed(2)} to your wallet!`, "success");
+        const maxAllowed = 2000 - customer.wallet;
+        if (customer.wallet + amount > 2000) {
+            const formattedMax = maxAllowed % 1 === 0 ? maxAllowed : maxAllowed.toFixed(2);
+            showToast(`You can only add ${formattedMax} rupees.`);
+            return;
+        }
+        try {
+            walletAmount = Backend.rechargeWallet(customer.email, amount);
+            document.getElementById('wallet-balance').textContent = walletAmount.toFixed(2);
+            showToast(`Successfully recharged ₹${amount.toFixed(2)} to your wallet!`, "success");
+            renderWalletHistory();
+            closeRechargeModal();
+        } catch (e) {
+            showToast(e.message);
+        }
     }
-    closeRechargeModal();
 }
 
 // Opens profile details modal

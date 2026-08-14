@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Portal</title>
+    <meta name="description"
+        content="View active ride requests, confirm bookings, navigate routes, and track your daily shift earnings.">
+    <!-- Google Fonts for Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <style type="text/tailwindcss">
+        @custom-variant dark (&:where(.dark, .dark *));
+    </style>
+    <!-- Tailwind CSS v4 CDN Browser Runtime -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: 'Outfit', sans-serif;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300 overflow-x-hidden">
+
+    <!-- Header / Navbar -->
+    <header
+        class="border-b border-slate-200 dark:border-neutral-900 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
+                <div
+                    class="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-sky-600/10 border border-sky-600/20 shadow-lg shadow-sky-600/5 shrink-0">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-sky-500" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3C13 6.8 11.5 6 9 6H5a3 3 0 0 0-3 3v7c0 .6.4 1 1 1h2" />
+                        <circle cx="7" cy="17" r="2" />
+                        <path d="M9 17h6" />
+                        <circle cx="17" cy="17" r="2" />
+                    </svg>
+                </div>
+                <div class="whitespace-nowrap">
+                    <h1
+                        class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none whitespace-nowrap">
+                        Indian Cabs</h1>
+                    <span
+                        class="text-[9px] sm:text-[10px] text-sky-500 font-semibold uppercase tracking-wider block mt-0.5 whitespace-nowrap">Driver
+                        Portal</span>
+                </div>
+            </div>
+
+            <!-- Profile & Active Shift Settings -->
+            <div class="flex items-center gap-2 sm:gap-6">
+                <!-- Theme Switcher Button -->
+                <button id="theme-toggle-btn" onclick="toggleTheme()"
+                    class="xl:h-[40px] h-[32px] rounded-full bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center gap-1.5 transition-all duration-300 hover:bg-slate-200 dark:hover:bg-neutral-800 px-3.5 focus:outline-none cursor-pointer hover:scale-105 active:scale-95 shrink-0 shadow-sm">
+                    <!-- Loaded dynamically -->
+                </button>
+
+                <!-- Shift Status Toggle Switch -->
+                <div
+                    class="flex items-center gap-1.5 sm:gap-2.5 bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-neutral-900 rounded-xl px-2 py-1 sm:px-4 sm:py-1.5 transition-colors duration-300">
+                    <span
+                        class="text-[8px] sm:text-[9px] text-slate-500 font-semibold uppercase tracking-wider block leading-none">Shift:</span>
+                    <button id="shift-toggle-btn" onclick="toggleShiftStatus()"
+                        class="relative inline-flex h-5 w-9 sm:h-6 sm:w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-neutral-800 transition-colors duration-200 ease-in-out focus:outline-none ring-2 ring-sky-600/20">
+                        <span id="shift-toggle-thumb"
+                            class="pointer-events-none inline-block h-4 w-4 sm:h-5 sm:w-5 transform rounded-full bg-slate-400 shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+                    </button>
+                    <span id="shift-status-badge"
+                        class="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">Offline</span>
+                </div>
+
+                <!-- Driver User Profile Summary -->
+                <div
+                    class="flex items-center gap-2 sm:gap-3 border-l border-slate-200 dark:border-neutral-900 pl-3 sm:pl-6">
+                    <div class="text-right hidden md:block">
+                        <span class="text-xs font-bold text-slate-800 dark:text-white block"
+                            id="driver-name-display">--</span>
+                        <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium block"
+                            id="driver-vehicle-number-header">--</span>
+                    </div>
+                    <div onclick="openProfileModal()" title="View Profile"
+                        class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-sky-500/10 to-sky-600/10 border border-sky-600/20 shadow-lg flex items-center justify-center text-sm sm:text-lg cursor-pointer transition-all hover:scale-105 active:scale-95">
+                        👨‍✈️
+                    </div>
+                    <!-- Logout -->
+                    <button onclick="logoutUser()" title="Logout"
+                        class="p-2 sm:p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all cursor-pointer">
+                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8">
+
+            <!-- LEFT COLUMN: RIDE OPERATIONS (lg:col-span-7) -->
+            <div class="lg:col-span-7 space-y-6">
+
+                <!-- STATE A: OFFLINE VIEW -->
+                <div id="offline-state-card"
+                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 text-center shadow-sm dark:shadow-xl transition-all duration-300">
+                    <span class="text-6xl block mb-4">💤</span>
+                    <h2 class="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">You are currently
+                        Offline</h2>
+                    <p class="text-xs text-slate-500 dark:text-neutral-400 mt-2 max-w-md mx-auto">
+                        To receive booking requests from nearby customers, toggle your shift status to online.
+                    </p>
+                    <button onclick="toggleShiftStatus(true)"
+                        class="mt-6 px-6 py-3 bg-sky-600 hover:bg-sky-500 text-black font-extrabold rounded-2xl shadow-lg shadow-sky-600/10 hover:-translate-y-0.5 transition-all cursor-pointer text-sm">
+                        ⚡ Go Online & Start Shifts
+                    </button>
+                </div>
+
+                <!-- STATE B: ONLINE & WAITING (SEARCHING FOR RIDE) -->
+                <!-- <div id="online-waiting-card" style="display: none;"
+                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 text-center shadow-sm dark:shadow-xl relative overflow-hidden transition-all duration-300"> -->
+                <!-- Scanning top lights -->
+                <!-- <div
+                        class="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-sky-600 via-yellow-400 to-sky-600">
+                    </div> -->
+
+                <h2 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">Active Radar Search
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Waiting for customer booking requests
+                    in Surat...</p>
+                <!-- Pulse radar design -->
+                <div class="relative flex items-center justify-center h-48 my-4">
+                    <div class="absolute w-36 h-36 bg-sky-600/5 border border-sky-600/15 rounded-full animate-ping">
+                    </div>
+                    <div class="absolute w-24 h-24 bg-sky-600/10 border border-sky-600/20 rounded-full animate-pulse">
+                    </div>
+                    <div class="absolute w-14 h-14 bg-sky-600/20 border border-sky-600/35 rounded-full"></div>
+                    <span class="text-4xl relative z-10 animate-bounce">🚘</span>
+                </div>
+
+                <span
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-sky-600/10 text-sky-500 border border-sky-600/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
+                    Radar scanning active
+                </span>
+            </div>
+
+            <!-- STATE C: NEW RIDE REQUEST CARD -->
+            <div id="new-request-card" style="display: none;"
+                class="bg-white dark:bg-[#050505] border-2 border-sky-600/50 rounded-[2rem] p-6 shadow-sm dark:shadow-2xl relative overflow-hidden transition-all duration-300">
+                <div class="absolute top-0 inset-x-0 h-1 bg-sky-600"></div>
+
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-xs font-bold text-orange-400 uppercase tracking-wider block">🚨 NEW RIDE
+                        REQUEST FOUND!</span>
+                    <span id="request-time-left"
+                        class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-600/10 border border-sky-600/20 text-orange-400">Expiring
+                        soon</span>
+                </div>
+
+                <!-- Customer Profile & Cab Class -->
+                <div
+                    class="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 mb-4 transition-colors duration-300">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-sky-600/10 border border-sky-600/20 flex items-center justify-center text-xl shrink-0">
+                            👤
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-800 dark:text-white" id="request-customer-name">
+                                Amit Sharma</h3>
+                            <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium block">Rating:
+                                4.8 ★</span>
+                        </div>
+                    </div>
+                    <div class="text-right flex items-center gap-2 justify-end">
+                        <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center overflow-hidden shrink-0 hidden"
+                            id="request-vehicle-img-container">
+                            <img id="request-vehicle-img" class="w-full h-full object-cover" src=""
+                                alt="Vehicle Preview">
+                        </div>
+                        <div>
+                            <span
+                                class="text-[8px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 uppercase font-semibold block mb-1 text-center"
+                                id="request-cab-class">SUV</span>
+                            <span class="text-xs font-bold text-slate-800 dark:text-white" id="request-distance">8.4
+                                km</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pickup and Dropoff Timeline -->
+                <div
+                    class="space-y-4 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 mb-5 text-xs transition-colors duration-300">
+                    <div class="flex gap-3 relative">
+                        <!-- Timeline bar -->
+                        <div class="absolute top-3 left-[9px] bottom-3 w-0.5 bg-slate-300 dark:bg-neutral-800">
+                        </div>
+
+                        <span
+                            class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-[10px] shrink-0 font-bold relative z-10">A</span>
+                        <div class="flex-grow">
+                            <span
+                                class="text-[9px] text-slate-500 dark:text-slate-400 block font-bold uppercase tracking-wider">Pickup
+                                Location</span>
+                            <p class="text-slate-700 dark:text-slate-200 mt-0.5 font-medium" id="request-pickup">
+                                Surat Railway Station
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <span
+                            class="w-5 h-5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center text-[10px] shrink-0 font-bold relative z-10">B</span>
+                        <div class="flex-grow">
+                            <span
+                                class="text-[9px] text-slate-500 dark:text-slate-400 block font-bold uppercase tracking-wider">Drop-off
+                                Destination</span>
+                            <p class="text-slate-700 dark:text-slate-200 mt-0.5 font-medium" id="request-dropoff">
+                                City Center Mall,
+                                Piplod</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estimated Fare Display -->
+                <div
+                    class="bg-gradient-to-r from-sky-600/5 to-sky-600/5 border border-sky-600/10 rounded-2xl p-4 flex items-center justify-between text-xs mb-6">
+                    <div>
+                        <span
+                            class="text-[9px] text-slate-550 dark:text-neutral-400 uppercase tracking-wider block">Estimated
+                            Earnings</span>
+                        <strong class="text-xl text-orange-400 mt-0.5 block" id="request-fare">₹185.00</strong>
+                    </div>
+                    <div class="text-right">
+                        <span
+                            class="text-[9px] text-slate-555 dark:text-neutral-400 uppercase tracking-wider block">Estimated
+                            Duration</span>
+                        <strong class="text-xs text-slate-800 dark:text-white mt-0.5 block">18 mins</strong>
+                    </div>
+                </div>
+
+                <!-- Acceptance Button Group -->
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="declineRideRequest()"
+                        class="col-span-1 py-3 px-4 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 border border-slate-200 dark:bg-neutral-900 dark:border-neutral-800 text-slate-500 dark:text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-all cursor-pointer text-xs">
+                        Decline
+                    </button>
+                    <button onclick="acceptRideRequest()"
+                        class="col-span-2 py-3 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-black hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-xs shadow-lg shadow-emerald-500/10">
+                        ✅ Accept & Confirm
+                    </button>
+                </div>
+            </div>
+
+            <!-- STATE D: ACTIVE TRIP CONTROL (ACCEPTED OR STARTED) -->
+            <div id="active-trip-card" style="display: none;"
+                class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-6 shadow-sm dark:shadow-xl relative overflow-hidden transition-all duration-300">
+                <div class="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-sky-400 to-indigo-500"
+                    id="active-trip-header-border"></div>
+
+                <h2 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1"
+                    id="active-trip-title">On the way
+                    to Pickup</h2>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mb-6" id="active-trip-subtitle">Follow
+                    instructions below to
+                    coordinate the ride</p>
+
+                <!-- Rider Detail card -->
+                <div
+                    class="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 mb-4 text-xs transition-colors duration-300">
+                    <div class="flex items-center gap-3">
+                        <span
+                            class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-xl shrink-0">
+                            🙋‍♂️
+                        </span>
+                        <div>
+                            <span
+                                class="text-[9px] text-slate-500 dark:text-slate-400 block uppercase font-bold tracking-wider">Customer</span>
+                            <h3 class="text-xs font-bold text-slate-800 dark:text-white" id="active-customer-name">
+                                Amit Sharma</h3>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span
+                            class="text-[9px] text-slate-500 dark:text-slate-400 block uppercase font-bold tracking-wider">Fare</span>
+                        <span class="font-bold text-sky-400" id="active-fare">₹185.00</span>
+                    </div>
+                </div>
+
+                <!-- Pickup/Dropoff details -->
+                <div
+                    class="space-y-4 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 mb-5 text-xs transition-colors duration-300">
+                    <div class="flex gap-3 relative">
+                        <div class="absolute top-3 left-[9px] bottom-3 w-0.5 bg-slate-300 dark:bg-neutral-800">
+                        </div>
+                        <span
+                            class="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-[10px] shrink-0 font-bold relative z-10">A</span>
+                        <div class="flex-grow">
+                            <span
+                                class="text-[9px] text-slate-500 dark:text-slate-400 block font-bold uppercase tracking-wider">Pickup
+                                Point</span>
+                            <p class="text-slate-700 dark:text-slate-300 font-medium" id="active-pickup">Surat
+                                Railway Station</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <span
+                            class="w-5 h-5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center text-[10px] shrink-0 font-bold relative z-10">B</span>
+                        <div class="flex-grow">
+                            <span
+                                class="text-[9px] text-slate-500 dark:text-slate-400 block font-bold uppercase tracking-wider">Drop-off
+                                Destination</span>
+                            <p class="text-slate-700 dark:text-slate-300 font-medium" id="active-dropoff">City
+                                Center Mall</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress bar -->
+                <div
+                    class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 mb-6 space-y-3 transition-colors duration-300">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-500 dark:text-slate-400">Status: <strong class="text-sky-400"
+                                id="active-status-text">Arriving at pickup...</strong></span>
+                        <span class="font-bold text-slate-800 dark:text-white"
+                            id="active-progress-percentage">40%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-neutral-900 h-2 rounded-full overflow-hidden">
+                        <div class="bg-gradient-to-r from-sky-400 to-indigo-500 h-full rounded-full transition-all duration-500"
+                            id="active-progress-bar" style="width: 40%"></div>
+                    </div>
+                </div>
+
+                <!-- Button Action Group dynamically set -->
+                <div class="grid grid-cols-2 gap-3" id="active-buttons-group">
+                    <button onclick="cancelActiveTrip()"
+                        class="py-3 px-4 rounded-xl font-bold bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:-translate-y-0.5 transition-all text-xs cursor-pointer">
+                        🚫 Cancel Ride
+                    </button>
+                    <button onclick="startActiveTrip()"
+                        class="py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer shadow-lg shadow-sky-500/10">
+                        🚀 Start Ride
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: STATS, WALLET & TRIP HISTORY (lg:col-span-5) -->
+        <div class="lg:col-span-5 space-y-6">
+
+            <!-- WALLET & PROFILE INFO CARD -->
+            <div
+                class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm dark:shadow-xl transition-all duration-300">
+                <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-4">
+                    Driver Profile
+                </h2>
+
+                <div class="space-y-4">
+                    <!-- Driver profile metrics -->
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div
+                            class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 text-center transition-colors duration-300">
+                            <span class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Star
+                                Rating</span>
+                            <strong class="text-sky-500 text-base block font-bold">★ 4.9</strong>
+                        </div>
+                        <div
+                            class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 text-center relative group transition-colors duration-300">
+                            <span
+                                class="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Vehicle
+                                Cab</span>
+                            <strong class="text-emerald-400 text-xs block font-bold truncate mt-0.5"
+                                id="driver-vehicle-display">-</strong>
+                            <button onclick="openVehicleModal(true)"
+                                class="absolute top-2 right-2 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer transition-colors text-[10px] bg-slate-200 dark:bg-slate-900 hover:bg-slate-300 dark:hover:bg-neutral-800 p-1 rounded-md"
+                                title="Edit Vehicle Details">
+                                ✏️
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Shift Wallet balance -->
+                    <div
+                        class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 flex items-center justify-between text-xs transition-colors duration-300">
+                        <div>
+                            <span
+                                class="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider block">Shift
+                                Earnings</span>
+                            <strong class="text-xl text-emerald-400 mt-0.5 block"
+                                id="driver-wallet-display">₹1,550.00</strong>
+                        </div>
+                        <div class="text-right">
+                            <span
+                                class="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider block">Trips
+                                Completed</span>
+                            <strong class="text-xs text-slate-800 dark:text-white mt-1.5 block"
+                                id="driver-trips-count-display">5
+                                trips</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DRIVER TRIP HISTORY LIST -->
+            <div
+                class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm dark:shadow-xl transition-all duration-300">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                    <div>
+                        <h2
+                            class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">
+                            Shift Trip
+                            History</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Rides completed during your active shift
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button id="drv-filter-all" onclick="setDriverHistoryFilter('all')"
+                            class="text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-sky-500 border-sky-500 text-white">All</button>
+                        <button id="drv-filter-completed" onclick="setDriverHistoryFilter('completed')"
+                            class="text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-transparent border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-slate-400">Completed</button>
+                        <button id="drv-filter-cancelled" onclick="setDriverHistoryFilter('cancelled')"
+                            class="text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-transparent border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-slate-400">Cancelled</button>
+                    </div>
+                </div>
+
+                <!-- History Listing Container -->
+                <div class="space-y-3" id="driver-history-list">
+                    <!-- Default Row 1 -->
+                    <div
+                        class="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 transition-colors duration-300">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xl">✅</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-white">Adajan to Railway
+                                    Station</h4>
+                                <span class="text-[9px] text-slate-500 dark:text-slate-400">Today • Customer: Rahul
+                                    Dave</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <strong class="text-xs font-bold text-emerald-400 block">₹120.00</strong>
+                            <span
+                                class="text-[7px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>
+                        </div>
+                    </div>
+
+                    <!-- Default Row 2 -->
+                    <div
+                        class="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 transition-colors duration-300">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xl">✅</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-white">Vesu to Surat Airport
+                                </h4>
+                                <span class="text-[9px] text-slate-500 dark:text-slate-400">Today • Customer: Priya
+                                    Mehta</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <strong class="text-xs font-bold text-emerald-400 block">₹280.00</strong>
+                            <span
+                                class="text-[7px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        </div>
+    </main>
+
+    <!-- Floating Toast Notification Container -->
+    <div id="toast-container" class="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- VEHICLE SETUP/EDIT MODAL -->
+    <div id="vehicle-modal" style="display: none;"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+        <div
+            class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-800 rounded-2xl sm:rounded-[2rem] max-w-md w-full p-5 sm:p-8 shadow-sm dark:shadow-2xl relative transition-all duration-300">
+            <!-- Close Button (only visible when editing an existing vehicle) -->
+            <button id="close-vehicle-modal-btn" onclick="closeVehicleModal()"
+                class="absolute top-6 right-6 text-neutral-500 hover:text-slate-800 dark:hover:text-white cursor-pointer transition-colors text-lg"
+                style="display: none;">
+                ✕
+            </button>
+
+            <!-- Modal Title -->
+            <div class="text-center mb-6">
+                <div
+                    class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-600/10 border border-sky-600/20 shadow-lg shadow-sky-600/5 mb-4">
+                    <svg class="w-8 h-8 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3C13 6.8 11.5 6 9 6H5a3 3 0 0 0-3 3v7c0 .6.4 1 1 1h2" />
+                        <circle cx="7" cy="17" r="2" />
+                        <path d="M9 17h6" />
+                        <circle cx="17" cy="17" r="2" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-extrabold text-slate-800 dark:text-white" id="vehicle-modal-title">Vehicle
+                    Details</h3>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1" id="vehicle-modal-desc">Please set up your
+                    vehicle to start
+                    accepting rides.</p>
+            </div>
+
+            <!-- Form -->
+            <form id="vehicle-form" onsubmit="saveVehicleDetails(event)" class="space-y-4">
+                <!-- Vehicle Model -->
+                <div>
+                    <label
+                        class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Vehicle
+                        Model</label>
+                    <input type="text" id="modal-vehicle-model" required placeholder="e.g. Toyota Camry, Maruti Swift"
+                        class="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-600 text-xs focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 transition-all">
+                </div>
+
+                <!-- Plate Number -->
+                <div>
+                    <label
+                        class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">License
+                        Plate Number</label>
+                    <input type="text" id="modal-vehicle-plate" required placeholder="e.g. GJ05AB1234, MH12CD5678"
+                        pattern="^[A-Z0-9]+$" oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')"
+                        class="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-600 text-xs focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 transition-all uppercase">
+                </div>
+
+                <!-- Cab Class -->
+                <div>
+                    <label
+                        class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Cab
+                        Category</label>
+                    <div class="relative">
+                        <select id="modal-vehicle-class" required
+                            class="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-800 dark:text-neutral-100 text-xs focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 transition-all appearance-none cursor-pointer">
+                            <option value="Car">🚗 Car</option>
+                            <option value="Auto Rickshaw">🛺 Auto Rickshaw</option>
+                            <option value="Bike">🏍️ Bike</option>
+                        </select>
+                        <div
+                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-neutral-500">
+                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit"
+                    class="w-full py-3.5 px-4 rounded-xl font-bold bg-sky-600 hover:bg-sky-500 text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-6 text-xs">
+                    Save Vehicle Details
+                </button>
+            </form>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- PROFILE DETAILS MODAL -->
+    <div id="profile-modal" style="display: none;"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+        <div
+            class="relative w-full max-w-md bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-800 rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 shadow-sm dark:shadow-2xl transition-all duration-300">
+            <!-- Close Button -->
+            <button onclick="closeProfileModal()"
+                class="absolute top-6 right-6 text-neutral-500 hover:text-slate-800 dark:hover:text-white cursor-pointer transition-colors text-lg">
+                ✕
+            </button>
+
+            <!-- Modal Title -->
+            <div class="text-center mb-6">
+                <div
+                    class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-600/10 border border-sky-600/20 shadow-lg shadow-sky-600/5 mb-4 text-2xl">
+                    👤
+                </div>
+                <h3 class="text-xl font-extrabold text-slate-800 dark:text-white">Driver Profile Details</h3>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Your registered partner profile
+                    information.</p>
+            </div>
+
+            <!-- Details Roster -->
+            <div class="space-y-4 text-sm">
+                <div
+                    class="bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3 transition-colors duration-300">
+                    <!-- Vehicle Image display -->
+                    <div id="profile-vehicle-image-container" class="flex justify-center mb-3 hidden">
+                        <img id="profile-vehicle-image"
+                            class="h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-800"
+                            src="" alt="Vehicle Preview">
+                    </div>
+                    <div class="flex justify-between border-b border-slate-200/50 dark:border-neutral-900/60 pb-2">
+                        <span class="text-slate-500 dark:text-slate-400 text-xs">Full Name</span>
+                        <strong class="text-slate-800 dark:text-white text-xs" id="profile-name">--</strong>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-200/50 dark:border-neutral-900/60 pb-2">
+                        <span class="text-slate-500 dark:text-slate-400 text-xs">Email Address</span>
+                        <strong class="text-slate-800 dark:text-white text-xs" id="profile-email">--</strong>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-200/50 dark:border-neutral-900/60 pb-2">
+                        <span class="text-slate-500 dark:text-slate-400 text-xs">Vehicle Registered</span>
+                        <strong class="text-slate-800 dark:text-white text-xs" id="profile-vehicle">--</strong>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-200/50 dark:border-neutral-900/60 pb-2">
+                        <span class="text-slate-500 dark:text-slate-400 text-xs">Cab Category</span>
+                        <strong class="text-slate-800 dark:text-white text-xs" id="profile-cabclass">--</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 dark:text-slate-400 text-xs">Registration Role</span>
+                        <span
+                            class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-600/10 text-sky-500 border border-sky-600/20 uppercase">Driver</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Close Button Footer -->
+            <button onclick="closeProfileModal()"
+                class="w-full py-3.5 px-4 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-6 text-xs">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script src="../shared/mock-backend.js?v=6"></script>
+    <script src="driver.js?v=5"></script>
+</body>
+
+</html>

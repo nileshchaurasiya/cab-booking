@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if user is logged in
     const user = Backend.getCurrentDriver();
     if (!user) {
-        window.location.href = 'login.html';
+        window.location.href = 'driver_login.html';
         return;
     }
 
@@ -60,15 +60,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('driver-vehicle-display').textContent = 'Setup Required';
         } else {
             document.getElementById('driver-vehicle-number-header').textContent = user.vehicle;
-            document.getElementById('driver-vehicle-display').textContent = `${user.vehicleModel} (${user.cabClass || 'Sedan'})`;
+            document.getElementById('driver-vehicle-display').textContent = `${user.vehicleModel} (${window.getCabCategoryDisplayName ? window.getCabCategoryDisplayName(user.cabClass || 'Sedan') : (user.cabClass || 'Sedan')})`;
         }
 
         // Load stats from Backend
-        const earnings = user.earnings;
-        const tripsCount = user.tripsCount;
+        const earnings = user.earnings || 0;
+        const tripsCount = user.tripsCount || 0;
 
-        document.getElementById('driver-wallet-display').textContent = `₹${earnings.toFixed(2)}`;
-        document.getElementById('driver-trips-count-display').textContent = `${tripsCount} trips`;
+        document.getElementById('driver-wallet-display').textContent = `₹${parseFloat(earnings).toFixed(2)}`;
+        document.getElementById('driver-trips-count-display').textContent = `${parseInt(tripsCount)} trips`;
 
         // Load completed trips history list
         renderTripsHistory();
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (e) {
         console.error("Session load error", e);
-        window.location.href = 'login.html';
+        window.location.href = '../customer/login.html';
     }
 });
 
@@ -131,11 +131,11 @@ function toggleShiftStatus(forceState = null) {
 
     if (isOnline) {
         // Online UI styles
-        btnToggle.classList.replace('bg-neutral-800', 'bg-amber-500');
+        btnToggle.classList.replace('bg-neutral-800', 'bg-sky-600');
         thumb.classList.replace('translate-x-0', 'translate-x-5');
-        thumb.classList.replace('bg-slate-400', 'bg-black');
+        thumb.classList.replace('bg-slate-400', 'bg-white');
         statusText.textContent = "Online";
-        statusText.className = "text-xs font-bold text-amber-400";
+        statusText.className = "text-xs font-bold text-sky-500";
 
         showToast("You are now ONLINE. Scanning for booking requests...", "success");
 
@@ -143,9 +143,9 @@ function toggleShiftStatus(forceState = null) {
         startPollingForBookings();
     } else {
         // Offline UI styles
-        btnToggle.classList.replace('bg-amber-500', 'bg-neutral-800');
+        btnToggle.classList.replace('bg-sky-600', 'bg-neutral-800');
         thumb.classList.replace('translate-x-5', 'translate-x-0');
-        thumb.classList.replace('bg-black', 'bg-slate-400');
+        thumb.classList.replace('bg-white', 'bg-slate-400');
         statusText.textContent = "Offline";
         statusText.className = "text-xs font-bold text-slate-400";
 
@@ -199,6 +199,7 @@ function checkActiveBookings() {
         if (booking.status === 'cancelled') {
             showToast("The active booking was cancelled by the customer.");
             currentActiveBookingId = null;
+            renderTripsHistory();
             showWaitingRadarCard();
             return;
         }
@@ -211,6 +212,17 @@ function checkActiveBookings() {
             currentActiveBookingId = null;
             showWaitingRadarCard();
             return;
+        }
+
+        // Sequential dispatch: only show to the assigned driver
+        if (booking.status === 'pending') {
+            if (booking.assignedDriverEmail && booking.assignedDriverEmail.toLowerCase() !== user.email.toLowerCase()) {
+                // This booking is assigned to a different driver
+                currentActiveBookingId = null;
+                currentShownRequestId = null;
+                showWaitingRadarCard();
+                return;
+            }
         }
 
         // Assignment check for active trips
@@ -235,7 +247,7 @@ function checkActiveBookings() {
 
                 // Populate request elements
                 document.getElementById('request-customer-name').textContent = booking.customerName;
-                document.getElementById('request-cab-class').textContent = booking.cabClass;
+                document.getElementById('request-cab-class').textContent = window.getCabCategoryDisplayName ? window.getCabCategoryDisplayName(booking.cabClass) : booking.cabClass;
                 document.getElementById('request-distance').textContent = `${booking.distance.toFixed(1)} km`;
                 document.getElementById('request-pickup').textContent = booking.pickup;
                 document.getElementById('request-dropoff').textContent = booking.dropoff;
@@ -245,11 +257,11 @@ function checkActiveBookings() {
                 const requestImgContainer = document.getElementById('request-vehicle-img-container');
                 const requestImg = document.getElementById('request-vehicle-img');
                 if (requestImg && requestImgContainer) {
-                    if (booking.cabClass === 'Splendor') {
-                        requestImg.src = 'splendor.png';
+                    if (booking.cabClass === 'Car') {
+                        requestImg.src = '../assets/car.png';
                         requestImgContainer.classList.remove('hidden');
-                    } else if (booking.cabClass === 'Defender') {
-                        requestImg.src = 'defender.png';
+                    } else if (booking.cabClass === 'Bike') {
+                        requestImg.src = '../assets/splendor.png';
                         requestImgContainer.classList.remove('hidden');
                     } else {
                         requestImgContainer.classList.add('hidden');
@@ -297,10 +309,7 @@ function checkActiveBookings() {
                 progressBar.style.width = `${floorProgress}%`;
 
                 buttonsGroup.innerHTML = `
-                    <button onclick="cancelActiveTrip()" class="py-3 px-4 rounded-xl font-bold bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:-translate-y-0.5 transition-all text-xs cursor-pointer">
-                        🚫 Cancel Ride
-                    </button>
-                    <button onclick="startActiveTrip()" class="py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer shadow-lg shadow-sky-500/10">
+                    <button onclick="startActiveTrip()" class="w-full py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer shadow-lg shadow-sky-500/10">
                         🚀 Start Ride
                     </button>
                 `;
@@ -360,6 +369,14 @@ function acceptRideRequest() {
         Backend.acceptBooking(booking.id, user.email);
         showToast("Booking request accepted! Head to pickup location.", "success");
 
+        // Automatically start the ride after 2 seconds
+        setTimeout(() => {
+            const active = Backend.getActiveBooking();
+            if (active && active.status === 'accepted') {
+                startActiveTrip();
+            }
+        }, 2000);
+
         // Refresh view immediately
         checkActiveBookings();
 
@@ -375,6 +392,7 @@ function declineRideRequest() {
     if (booking) {
         Backend.cancelActiveBooking(booking.id, 'driver');
     }
+    currentShownRequestId = null;
     showToast("Request declined.");
     showWaitingRadarCard();
 }
@@ -439,6 +457,27 @@ function completeActiveTrip() {
 }
 
 // Renders the Driver Trip History list from localStorage
+let driverHistoryFilter = 'all';
+
+function setDriverHistoryFilter(filter) {
+    driverHistoryFilter = filter;
+    const filters = ['all', 'completed', 'cancelled'];
+    filters.forEach(f => {
+        const btn = document.getElementById(`drv-filter-${f}`);
+        if (!btn) return;
+        if (f === filter) {
+            btn.className = `text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
+                f === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' :
+                f === 'cancelled' ? 'bg-rose-500 border-rose-500 text-white' :
+                'bg-sky-500 border-sky-500 text-white'
+            }`;
+        } else {
+            btn.className = 'text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-transparent border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-slate-400';
+        }
+    });
+    renderTripsHistory();
+}
+
 function renderTripsHistory() {
     const container = document.getElementById('driver-history-list');
     if (!container) return;
@@ -447,22 +486,36 @@ function renderTripsHistory() {
     if (!user) return;
 
     try {
-        const historyList = user.tripsHistory;
+        const allHistory = user.tripsHistory || [];
+        const historyList = driverHistoryFilter === 'all'
+            ? allHistory
+            : allHistory.filter(t => {
+                const isCompleted = t.status === 'Completed' || !t.status;
+                return driverHistoryFilter === 'completed' ? isCompleted : !isCompleted;
+            });
         let html = '';
         historyList.forEach(trip => {
             const displayName = trip.pickup.includes(' to ') ? trip.pickup : `${trip.pickup} to ${trip.dropoff}`;
+            const isCompleted = trip.status === 'Completed' || !trip.status;
+            
+            const icon = isCompleted ? '✅' : '❌';
+            const textClass = isCompleted ? 'text-emerald-400' : 'text-rose-400';
+            const statusBadge = isCompleted 
+                ? `<span class="text-[7px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>`
+                : `<span class="text-[7px] px-1 py-0.2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase font-semibold">Cancelled</span>`;
+
             html += `
                 <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 hover:border-slate-300 dark:hover:border-neutral-800 transition-colors duration-300">
                     <div class="flex items-center gap-3">
-                        <span class="text-xl">✅</span>
+                        <span class="text-xl">${icon}</span>
                         <div>
                             <h4 class="text-xs font-bold text-slate-800 dark:text-white truncate max-w-[180px]">${displayName}</h4>
                             <span class="text-[9px] text-slate-500 dark:text-slate-400">Today • Customer: ${trip.customer}</span>
                         </div>
                     </div>
                     <div class="text-right">
-                        <strong class="text-xs font-bold text-emerald-400 block">₹${trip.fare.toFixed(2)}</strong>
-                        <span class="text-[7px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>
+                        <strong class="text-xs font-bold ${textClass} block">₹${trip.fare.toFixed(2)}</strong>
+                        ${statusBadge}
                     </div>
                 </div>
             `;
@@ -503,7 +556,7 @@ function openVehicleModal(isCancelable = true) {
     if (user) {
         document.getElementById('modal-vehicle-model').value = user.vehicleModel || '';
         document.getElementById('modal-vehicle-plate').value = user.vehiclePlate || '';
-        document.getElementById('modal-vehicle-class').value = user.cabClass || 'Mini';
+        document.getElementById('modal-vehicle-class').value = user.cabClass || 'Car';
     }
 
     modal.style.display = 'flex';
@@ -534,7 +587,7 @@ function saveVehicleDetails(event) {
 
     const user = Backend.getCurrentDriver();
     if (!user) {
-        window.location.href = 'login.html';
+        window.location.href = '../customer/login.html';
         return;
     }
 
@@ -561,17 +614,17 @@ function openProfileModal() {
             document.getElementById('profile-name').textContent = user.name || '--';
             document.getElementById('profile-email').textContent = user.email || '--';
             document.getElementById('profile-vehicle').textContent = user.vehicle || 'Not setup';
-            document.getElementById('profile-cabclass').textContent = user.cabClass || '--';
+            document.getElementById('profile-cabclass').textContent = window.getCabCategoryDisplayName ? window.getCabCategoryDisplayName(user.cabClass || '--') : (user.cabClass || '--');
 
             // Show vehicle preview image
             const imageContainer = document.getElementById('profile-vehicle-image-container');
             const imageEl = document.getElementById('profile-vehicle-image');
             if (imageEl && imageContainer) {
-                if (user.cabClass === 'Splendor') {
-                    imageEl.src = 'splendor.png';
+                if (user.cabClass === 'Car') {
+                    imageEl.src = '../assets/car.png';
                     imageContainer.classList.remove('hidden');
-                } else if (user.cabClass === 'Defender') {
-                    imageEl.src = 'defender.png';
+                } else if (user.cabClass === 'Bike') {
+                    imageEl.src = '../assets/splendor.png';
                     imageContainer.classList.remove('hidden');
                 } else {
                     imageContainer.classList.add('hidden');
