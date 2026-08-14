@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     } catch (e) {
         console.error("Session load error", e);
-        window.location.href = '../customer/login.html';
+        window.location.href = 'driver_login.html';
     }
 });
 
@@ -587,7 +587,7 @@ function saveVehicleDetails(event) {
 
     const user = Backend.getCurrentDriver();
     if (!user) {
-        window.location.href = '../customer/login.html';
+        window.location.href = 'driver_login.html';
         return;
     }
 
