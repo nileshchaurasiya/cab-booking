@@ -417,14 +417,14 @@ class MockBackendService {
                 const driver = db.drivers.find(d => d.email.toLowerCase() === currentDriver.email.toLowerCase());
                 if (driver) {
                     driver.online = false;
-                    
+
                     // Re-assign/reset active bookings if they were assigned to or accepted by this logging-out driver
                     if (db.activeBookings) {
                         db.activeBookings.forEach(active => {
                             const isAssigned = active.assignedDriverEmail && active.assignedDriverEmail.toLowerCase() === driver.email.toLowerCase();
-                            const isAccepted = active.driverPlate && driver.vehiclePlate && 
+                            const isAccepted = active.driverPlate && driver.vehiclePlate &&
                                 active.driverPlate.toLowerCase() === driver.vehiclePlate.toLowerCase();
-                            
+
                             if (isAssigned || isAccepted) {
                                 active.assignedDriverEmail = null;
                                 if (active.status === 'accepted' || active.status === 'started') {
@@ -515,14 +515,14 @@ class MockBackendService {
         if (index !== -1) {
             const driverToDelete = db.drivers[index];
             db.drivers.splice(index, 1);
-            
+
             // Re-assign/reset active bookings if they were assigned to or accepted by this deleted driver
             if (db.activeBookings) {
                 db.activeBookings.forEach(active => {
                     const isAssigned = active.assignedDriverEmail && active.assignedDriverEmail.toLowerCase() === email.toLowerCase();
-                    const isAccepted = active.driverPlate && driverToDelete.vehiclePlate && 
+                    const isAccepted = active.driverPlate && driverToDelete.vehiclePlate &&
                         active.driverPlate.toLowerCase() === driverToDelete.vehiclePlate.toLowerCase();
-                    
+
                     if (isAssigned || isAccepted) {
                         active.assignedDriverEmail = null;
                         if (active.status === 'accepted' || active.status === 'started') {
@@ -621,8 +621,8 @@ class MockBackendService {
             d.online === true &&
             d.cabClass === booking.cabClass &&
             !declinedList.includes(d.email) &&
-            !db.activeBookings.some(b => 
-                b.id !== booking.id && 
+            !db.activeBookings.some(b =>
+                b.id !== booking.id &&
                 (b.status === 'accepted' || b.status === 'started') &&
                 (b.assignedDriverEmail === d.email || (b.driverPlate && d.vehiclePlate && b.driverPlate.toLowerCase() === d.vehiclePlate.toLowerCase()))
             )
@@ -638,8 +638,8 @@ class MockBackendService {
                 eligibleDriver = db.drivers.find(d =>
                     d.online === true &&
                     d.cabClass === booking.cabClass &&
-                    !db.activeBookings.some(b => 
-                        b.id !== booking.id && 
+                    !db.activeBookings.some(b =>
+                        b.id !== booking.id &&
                         (b.status === 'accepted' || b.status === 'started') &&
                         (b.assignedDriverEmail === d.email || (b.driverPlate && d.vehiclePlate && b.driverPlate.toLowerCase() === d.vehiclePlate.toLowerCase()))
                     )
@@ -711,7 +711,7 @@ class MockBackendService {
 
     getActiveBooking() {
         const db = this.getDb();
-        
+
         // Return booking depending on who's asking
         const customer = this.getCurrentCustomer();
         const driver = this.getCurrentDriver();
@@ -726,7 +726,7 @@ class MockBackendService {
         }
 
         if (driver) {
-            const booking = db.activeBookings.find(b => 
+            const booking = db.activeBookings.find(b =>
                 b.assignedDriverEmail && b.assignedDriverEmail.toLowerCase() === driver.email.toLowerCase()
             );
             if (booking && booking.status === 'pending') {
