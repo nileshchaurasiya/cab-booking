@@ -88,7 +88,7 @@ function closeAddDriverModal() {
     document.getElementById('add-driver-modal').style.display = 'none';
 }
 
-function submitAddDriver(event) {
+async function submitAddDriver(event) {
     event.preventDefault();
     const name     = document.getElementById('add-driver-name').value.trim();
     const email    = document.getElementById('add-driver-email').value.trim();
@@ -96,19 +96,26 @@ function submitAddDriver(event) {
     const vehicle  = document.getElementById('add-driver-vehicle').value.trim();
     const cabClass = document.getElementById('add-driver-cabclass').value;
 
-    try {
-        Backend.register(name, email, 'driver', password, 'Surat, Gujarat', vehicle);
+    const parts = vehicle.split('-');
+    if (parts.length < 2) {
+        showToast("Please enter vehicle in 'Model - PlateNumber' format (e.g. Innova - GJ05NW3945)!");
+        return;
+    }
+    const model = parts[0].trim();
+    const plate = parts[1].trim().replace(/[\s-]/g, '').toUpperCase();
 
-        // Set cab class after registration
-        const db = Backend.getDb();
-        const driver = db.drivers.find(d => d.email.toLowerCase() === email.toLowerCase());
-        if (driver) {
-            driver.cabClass = cabClass;
-            const parts = vehicle.split('-');
-            driver.vehicleModel = parts[0].trim();
-            driver.vehiclePlate = parts.length > 1 ? parts[1].trim() : vehicle;
-            Backend.saveDb(db);
-        }
+    if (!model || !plate) {
+        showToast("Please enter both the vehicle model and plate number!");
+        return;
+    }
+
+    if (!/^[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}$/.test(plate)) {
+        showToast("Invalid Plate Number! Format must be 2 capital letters, 2 digits, 2 capital letters, 4 digits (e.g. GJ05NW3945).");
+        return;
+    }
+
+    try {
+        await Backend.register(name, email, 'driver', password, 'Surat, Gujarat', `${model} - ${plate}`, cabClass);
 
         showToast(`Driver "${name}" registered successfully!`, 'success');
         closeAddDriverModal();
@@ -119,18 +126,26 @@ function submitAddDriver(event) {
 }
 
 // Polls localStorage/Backend to dynamically sync metrics and roster states
-function syncDashboardData() {
-    const allDrivers = Backend.getAllDrivers().filter(d => d.online);
-    const onlineDrivers = allDrivers;
+async function syncDashboardData() {
+    let allDrivers = [];
+    let activeBookings = [];
+    let adminEarnings = 0;
+    try {
+        allDrivers = await Backend.getAllDrivers();
+        activeBookings = await Backend.getActiveBookings();
+        adminEarnings = await Backend.getAdminEarnings();
+    } catch (e) {
+        console.error("Dashboard sync error", e);
+        return;
+    }
 
-    const activeBookings = Backend.getActiveBookings();
+    const onlineDrivers = allDrivers.filter(d => d.online);
     const activeBookingsCount = activeBookings.length;
 
     // B. Render Stats Counters
     document.getElementById('driver-count-display').textContent = onlineDrivers.length;
     document.getElementById('customer-count-display').textContent = activeBookingsCount;
 
-    const adminEarnings = Backend.getAdminEarnings();
     document.getElementById('admin-earnings-display').textContent = `₹${adminEarnings.toFixed(2)}`;
 
     // C. Render Driver Roster Table
@@ -234,7 +249,12 @@ function syncDashboardData() {
 
     // E. Render Transaction & Ride History Table
     const historyRosterBody = document.getElementById('history-roster-body');
-    const allBookings = Backend.getAllBookings();
+    let allBookings = [];
+    try {
+        allBookings = await Backend.getAllBookings();
+    } catch (e) {
+        console.error("Failed to fetch past bookings", e);
+    }
     const allPastBookings = allBookings.filter(b => b.status === 'completed' || b.status === 'cancelled');
     const pastBookings = historyFilter === 'all'
         ? allPastBookings
@@ -283,25 +303,29 @@ function syncDashboardData() {
 }
 
 // Action: Delete Driver
-function handleDeleteDriver(email, name) {
+async function handleDeleteDriver(email, name) {
     if (confirm(`Are you sure you want to delete driver "${name}"?`)) {
-        const success = Backend.deleteDriver(email);
-        if (success) {
-            showToast(`Driver "${name}" has been deleted.`, 'success');
-            syncDashboardData();
-        } else {
-            showToast("Failed to delete driver.");
+        try {
+            const success = await Backend.deleteDriver(email);
+            if (success) {
+                showToast(`Driver "${name}" has been deleted.`, 'success');
+                await syncDashboardData();
+            } else {
+                showToast("Failed to delete driver.");
+            }
+        } catch (e) {
+            showToast(e.message);
         }
     }
 }
 
 // Action: Cancel Active Booking (by Admin)
-function handleCancelActiveBooking(bookingId) {
+async function handleCancelActiveBooking(bookingId) {
     if (confirm("Are you sure you want to cancel this active booking/ride request?")) {
         try {
-            Backend.cancelActiveBooking(bookingId, 'customer');
+            await Backend.cancelActiveBooking(bookingId, 'customer');
             showToast("Booking cancelled successfully.", "success");
-            syncDashboardData();
+            await syncDashboardData();
         } catch (e) {
             showToast(e.message);
         }
@@ -309,9 +333,12 @@ function handleCancelActiveBooking(bookingId) {
 }
 
 // Action: Reset Database System
-function handleResetDatabase() {
+async function handleResetDatabase() {
     if (confirm("Are you sure you want to reset the system? This will delete all registered drivers, active/past bookings, and restore default settings.")) {
-        localStorage.clear();
-        window.location.reload();
+        try {
+            await Backend.resetDatabase();
+        } catch (e) {
+            showToast("Database reset failed!");
+        }
     }
 }

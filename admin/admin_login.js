@@ -39,7 +39,7 @@ function showToast(message, type = 'error') {
 }
 
 // Handles form submission
-function handleLoginSubmit(event) {
+async function handleLoginSubmit(event) {
     event.preventDefault();
 
     const emailInput = document.getElementById('auth-email').value.trim();
@@ -75,12 +75,12 @@ function handleLoginSubmit(event) {
     const displayName = prefix.charAt(0).toUpperCase() + prefix.slice(1);
 
     // Save session and log in (forces role: 'admin')
-    loginSuccess(displayName, emailInput, selectedAuthRole, '');
+    await loginSuccess(displayName, emailInput, selectedAuthRole, '');
 }
 
-function loginSuccess(name, email, role, address = '') {
+async function loginSuccess(name, email, role, address = '') {
     try {
-        Backend.login(email, 'admin1234', 'admin');
+        await Backend.login(email, 'admin1234', 'admin');
         window.location.href = 'admin.html';
     } catch (e) {
         showToast(e.message);

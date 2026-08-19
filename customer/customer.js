@@ -48,7 +48,7 @@ function showToast(message, type = 'error') {
 }
 
 // Session validation on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const user = Backend.getCurrentCustomer();
     if (!user) {
         window.location.href = 'login.html';
@@ -98,52 +98,54 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Check for active booking
-        const booking = Backend.getActiveBooking();
-        if (booking) {
+        const booking = await Backend.getActiveBooking();
+        if (booking && booking.status !== 'completed' && booking.status !== 'cancelled') {
             try {
-                if (booking.status !== 'completed' && booking.status !== 'cancelled') {
-                    // Restore active booking tracking
-                    document.getElementById('booking-form-card').style.display = 'none';
-                    document.getElementById('booking-tracking-card').style.display = 'block';
+                // Restore active booking tracking
+                document.getElementById('booking-form-card').style.display = 'none';
+                document.getElementById('booking-tracking-card').style.display = 'block';
 
-                    currentDistance = booking.distance;
-                    currentFare = booking.fare;
-                    currentCabClass = booking.cabClass;
+                currentDistance = booking.distance;
+                currentFare = booking.fare;
+                currentCabClass = booking.cabClass;
 
-                    // Restart polling/simulation
-                    if (booking.driverName || booking.status === 'accepted' || booking.status === 'started') {
-                        // Driver is matched
-                        document.getElementById('tracker-driver-name').textContent = booking.driverName || "Matching...";
-                        document.getElementById('tracker-vehicle-name').textContent = booking.driverVehicle || "Matched Driver...";
-                        document.getElementById('tracker-vehicle-number').textContent = booking.driverPlate || "...";
-                        updateTrackerVehicleImage(booking);
+                // Restart polling/simulation
+                if (booking.driverName || booking.status === 'accepted' || booking.status === 'started') {
+                    // Driver is matched
+                    document.getElementById('tracker-driver-name').textContent = booking.driverName || "Matching...";
+                    document.getElementById('tracker-vehicle-name').textContent = booking.driverVehicle || "Matched Driver...";
+                    document.getElementById('tracker-vehicle-number').textContent = booking.driverPlate || "...";
+                    updateTrackerVehicleImage(booking);
 
-                        if (booking.status === 'accepted') {
-                            document.getElementById('tracker-ride-status').textContent = "Driver accepted! Arriving at pickup...";
-                            document.getElementById('tracker-progress-bar').style.width = "40%";
-                            document.getElementById('tracker-progress-percentage').textContent = "40%";
-                        } else if (booking.status === 'started') {
-                            document.getElementById('tracker-ride-status').textContent = "Ride started! En route to destination...";
-                            document.getElementById('tracker-progress-bar').style.width = "50%";
-                            document.getElementById('tracker-progress-percentage').textContent = "50%";
-                        }
-                    } else {
-                        // Still waiting
-                        document.getElementById('tracker-driver-name').textContent = "Matching...";
-                        document.getElementById('tracker-vehicle-name').textContent = "Searching for nearest driver...";
-                        document.getElementById('tracker-vehicle-number').textContent = "...";
-                        document.getElementById('tracker-ride-status').textContent = "Waiting for driver to accept...";
-                        document.getElementById('tracker-progress-bar').style.width = "10%";
-                        document.getElementById('tracker-progress-percentage').textContent = "10%";
-                        updateTrackerVehicleImage(booking);
+                    if (booking.status === 'accepted') {
+                        document.getElementById('tracker-ride-status').textContent = "Driver accepted! Arriving at pickup...";
+                        document.getElementById('tracker-progress-bar').style.width = "40%";
+                        document.getElementById('tracker-progress-percentage').textContent = "40%";
+                    } else if (booking.status === 'started') {
+                        document.getElementById('tracker-ride-status').textContent = "Ride started! En route to destination...";
+                        document.getElementById('tracker-progress-bar').style.width = "50%";
+                        document.getElementById('tracker-progress-percentage').textContent = "50%";
                     }
-
-                    // Restart polling check
-                    startBookingPolling(booking.pickup, booking.dropoff);
+                } else {
+                    // Still waiting
+                    document.getElementById('tracker-driver-name').textContent = "Matching...";
+                    document.getElementById('tracker-vehicle-name').textContent = "Searching for nearest driver...";
+                    document.getElementById('tracker-vehicle-number').textContent = "...";
+                    document.getElementById('tracker-ride-status').textContent = "Waiting for driver to accept...";
+                    document.getElementById('tracker-progress-bar').style.width = "10%";
+                    document.getElementById('tracker-progress-percentage').textContent = "10%";
+                    updateTrackerVehicleImage(booking);
                 }
+
+                // Restart polling check
+                startBookingPolling(booking.pickup, booking.dropoff);
             } catch (err) {
                 console.error("Error recovering active booking", err);
+                document.getElementById('booking-form-card').style.display = 'block';
             }
+        } else {
+            // No active booking, show the booking form
+            document.getElementById('booking-form-card').style.display = 'block';
         }
 
         // Render updated trips history list & wallet history
@@ -234,7 +236,7 @@ function handleCabRequest(event) {
     `;
 
     // Simulate search loading lag
-    setTimeout(() => {
+    setTimeout(async () => {
         const customer = Backend.getCurrentCustomer();
         if (!customer) {
             showToast("Customer session not found!");
@@ -244,7 +246,7 @@ function handleCabRequest(event) {
         }
 
         try {
-            const booking = Backend.createBooking(customer.name, customer.email, pickupVal, dropoffVal, currentDistance, currentFare, currentCabClass);
+            const booking = await Backend.createBooking(customer.name, customer.email, pickupVal, dropoffVal, currentDistance, currentFare, currentCabClass);
             walletAmount = customer.wallet - currentFare;
             document.getElementById('wallet-balance').textContent = walletAmount.toFixed(2);
 
@@ -282,8 +284,8 @@ function startBookingPolling(pickup, dropoff) {
 
     let hasShownDriverUnavailable = false;
 
-    bookingProgressInterval = setInterval(() => {
-        let booking = Backend.getActiveBooking();
+    bookingProgressInterval = setInterval(async () => {
+        let booking = await Backend.getActiveBooking();
 
         if (!booking) {
             // Booking was removed, cancel everything
@@ -368,9 +370,6 @@ function startBookingPolling(pickup, dropoff) {
                 clearInterval(bookingProgressInterval);
                 showToast("Trip completed! Thank you for riding.", "success");
 
-                // Clear active booking status in Backend
-                Backend.clearActiveBooking();
-
                 // Sync wallet balance
                 const customer = Backend.getCurrentCustomer();
                 if (customer) {
@@ -382,8 +381,8 @@ function startBookingPolling(pickup, dropoff) {
                 renderCustomerTripsHistory();
                 renderWalletHistory();
 
-                // Return back to booking form
-                resetDashboardToForm();
+                // Open feedback modal with driver details
+                openFeedbackModal(booking);
                 return;
             }
 
@@ -441,14 +440,14 @@ function cancelCurrentBookingLocally(shouldRefund, toastMessage) {
 
 
 // Refers back to booking form when cancellation is called by user clicking "Cancel Ride"
-function cancelCurrentBooking() {
-    const booking = Backend.getActiveBooking();
+async function cancelCurrentBooking() {
+    const booking = await Backend.getActiveBooking();
     if (booking) {
         if (booking.status === 'started' || booking.status === 'accepted') {
             showToast("Cannot cancel the ride as it has already been accepted.", "error");
             return;
         }
-        Backend.cancelActiveBooking(booking.id, 'customer');
+        await Backend.cancelActiveBooking(booking.id, 'customer');
     }
     cancelCurrentBookingLocally(true, "Booking cancelled successfully. Amount refunded.");
 }
@@ -661,7 +660,7 @@ function selectRechargeAmount(amount) {
     }
 }
 
-function submitRecharge(event) {
+async function submitRecharge(event) {
     event.preventDefault();
 
     const input = document.getElementById('recharge-amount-input');
@@ -687,7 +686,7 @@ function submitRecharge(event) {
             return;
         }
         try {
-            walletAmount = Backend.rechargeWallet(customer.email, amount);
+            walletAmount = await Backend.rechargeWallet(customer.email, amount);
             document.getElementById('wallet-balance').textContent = walletAmount.toFixed(2);
             showToast(`Successfully recharged ₹${amount.toFixed(2)} to your wallet!`, "success");
             renderWalletHistory();
@@ -735,3 +734,70 @@ function updateTrackerVehicleImage(booking) {
         avatarEl.classList.remove('hidden');
     }
 }
+
+let selectedFeedbackStarsValue = 5;
+let currentFeedbackBookingId = null;
+
+function openFeedbackModal(booking) {
+    // Prevent duplicate modal opening if feedback has already been submitted for this booking ID
+    const submittedFeedbacks = JSON.parse(localStorage.getItem('indiancabs_submitted_feedbacks') || '[]');
+    if (submittedFeedbacks.includes(booking.id)) {
+        resetDashboardToForm();
+        return;
+    }
+
+    currentFeedbackBookingId = booking.id;
+
+    document.getElementById('feedback-driver-name').textContent = booking.driverName || 'Driver';
+    document.getElementById('feedback-vehicle-info').textContent = `${booking.driverVehicle || 'Cab'} (${booking.driverPlate || ''})`;
+    document.getElementById('feedback-comment').value = '';
+    
+    // Reset star colors
+    selectFeedbackStars(5);
+    
+    const feedbackModal = document.getElementById('feedback-modal');
+    if (feedbackModal) {
+        feedbackModal.style.display = 'flex';
+    }
+}
+
+function selectFeedbackStars(stars) {
+    selectedFeedbackStarsValue = stars;
+    const starButtons = document.querySelectorAll('#feedback-modal .star-btn');
+    starButtons.forEach((btn, idx) => {
+        if (idx < stars) {
+            btn.className = "star-btn text-3xl text-amber-400 hover:scale-110 active:scale-95 transition-all focus:outline-none";
+        } else {
+            btn.className = "star-btn text-3xl text-slate-350 dark:text-neutral-700 hover:scale-110 active:scale-95 transition-all focus:outline-none";
+        }
+    });
+}
+
+function submitRideFeedback() {
+    const comment = document.getElementById('feedback-comment').value.trim();
+    const feedbackModal = document.getElementById('feedback-modal');
+    
+    // Clear active booking from backend session cache
+    Backend.clearActiveBooking();
+    
+    // Record this booking ID as rated in localStorage to prevent duplicate modal popups on refresh
+    if (currentFeedbackBookingId) {
+        const submittedFeedbacks = JSON.parse(localStorage.getItem('indiancabs_submitted_feedbacks') || '[]');
+        submittedFeedbacks.push(currentFeedbackBookingId);
+        localStorage.setItem('indiancabs_submitted_feedbacks', JSON.stringify(submittedFeedbacks));
+    }
+
+    if (feedbackModal) {
+        feedbackModal.style.display = 'none';
+    }
+    
+    showToast("Thank you for your rating & feedback!", "success");
+    
+    // Return back to booking form
+    resetDashboardToForm();
+}
+
+// Bind to window for HTML onclick actions
+window.openFeedbackModal = openFeedbackModal;
+window.selectFeedbackStars = selectFeedbackStars;
+window.submitRideFeedback = submitRideFeedback;

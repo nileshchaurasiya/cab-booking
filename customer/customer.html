@@ -5,6 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Booking Dashboard</title>
+    <script>
+        (function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const themeParam = urlParams.get('theme');
+            if (themeParam === 'light' || themeParam === 'dark') {
+                localStorage.setItem('indiancabs_theme', themeParam);
+            }
+            const savedTheme = localStorage.getItem('indiancabs_theme') || 'dark';
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
     <meta name="description"
         content="Book instant and secure rides, view real-time maps, and manage your trips on the Indian Cabs Customer Portal.">
     <!-- Google Fonts for Modern Typography -->
@@ -22,6 +37,7 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
         }
 
         h1,
@@ -40,16 +56,23 @@
             background-color: #1c1c1e !important;
             border-color: #2c2c2e !important;
         }
+
+        /* Mobile responsive fixes */
+        @media (max-width: 640px) {
+            .vehicle-selector-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+        }
     </style>
 </head>
 
 <body
-    class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
+    class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300 overflow-x-hidden">
 
     <!-- Header / Navbar -->
     <header
         class="border-b border-slate-200 dark:border-neutral-900 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
-        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
+        <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
             <!-- Brand Logo -->
             <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
                 <div
@@ -74,12 +97,12 @@
             </div>
 
             <!-- Profile and Stats Group -->
-            <div class="flex items-center gap-2 sm:gap-6">
+            <div class="flex items-center gap-1.5 sm:gap-6 min-w-0">
                 <!-- Theme Switcher Button -->
-                <button id="theme-toggle-btn" onclick="toggleTheme()"
+                <!-- <button id="theme-toggle-btn" onclick="toggleTheme()"
                     class="xl:h-[40px] h-[32px] rounded-full bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center gap-1.5 transition-all duration-300 hover:bg-slate-200 dark:hover:bg-neutral-800 px-3.5 focus:outline-none cursor-pointer hover:scale-105 active:scale-95 shrink-0 shadow-sm">
-                    <!-- Loaded dynamically -->
-                </button>
+                     Loaded dynamically 
+                </button> -->
 
                 <!-- Wallet Balance (Stat / Button to Recharge) -->
                 <button onclick="openRechargeModal()" title="Recharge Wallet"
@@ -89,7 +112,7 @@
                         id="wallet-balance">10000.00</span>
                 </button>
 
-                <!-- User Profile Summary -->
+                <!-- User Settings & Profile -->
                 <div
                     class="flex items-center gap-2 sm:gap-3 border-l border-slate-200 dark:border-neutral-900 pl-3 sm:pl-6">
                     <div class="text-right hidden md:block">
@@ -98,22 +121,15 @@
                         <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium block"
                             id="customer-address-display">--</span>
                     </div>
-                    <div onclick="openProfileModal()" title="View Profile"
-                        class="w-10 h-10 rounded-full bg-gradient-to-r from-sky-400/10 to-indigo-500/10 border border-sky-500/20 shadow-lg flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95">
-                        <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.5">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                        </svg>
-                    </div>
-                    <!-- Logout -->
-                    <button onclick="logoutUser()" title="Logout"
-                        class="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all cursor-pointer">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                            <polyline points="16 17 21 12 16 7" />
-                            <line x1="21" y1="12" x2="9" y2="12" />
+                    <button onclick="openProfileModal()" title="Settings & Profile"
+                        class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-200 dark:hover:bg-neutral-800 hover:scale-105 active:scale-95 text-slate-600 dark:text-neutral-400 focus:outline-none">
+                        <svg class="w-5 h-5 transition-transform duration-500 hover:rotate-90" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+                            </path>
                         </svg>
                     </button>
                 </div>
@@ -122,15 +138,15 @@
     </header>
 
     <!-- Main Dashboard Grid -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <main class="flex-grow max-w-7xl w-full mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8">
 
             <!-- LEFT COLUMN: BOOKING INTERFACE (lg:col-span-6) -->
             <div class="lg:col-span-6 space-y-6">
 
                 <!-- booking form container -->
-                <div id="booking-form-card"
-                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm dark:shadow-xl transition-all duration-300">
+                <div id="booking-form-card" style="display: none;"
+                    class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-3 sm:p-6 shadow-sm dark:shadow-xl transition-all duration-300 overflow-hidden">
                     <h2 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Book Your Ride
                     </h2>
                     <p class="text-xs text-neutral-400 mb-6">Instantly compare and request a vehicle in your area</p>
@@ -171,7 +187,7 @@
                             <label
                                 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Select
                                 Vehicle Class</label>
-                            <div class="grid grid-cols-3 gap-2 sm:gap-3" id="vehicle-type-selector">
+                            <div class="grid grid-cols-3 gap-1.5 sm:gap-3" id="vehicle-type-selector">
                                 <!-- Splendor Bike -->
                                 <button type="button" onclick="selectCabClass('Car', 50)" id="cab-splendor"
                                     class="flex flex-col items-center justify-center p-3 bg-blue-50/70 dark:bg-slate-900 border border-sky-500 rounded-2xl transition-all cursor-pointer text-center group ring-2 ring-sky-500/30">
@@ -200,7 +216,7 @@
 
                         <!-- Estimate Details -->
                         <div
-                            class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 flex items-center justify-between text-xs mt-2 transition-colors duration-300">
+                            class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs mt-2 transition-colors duration-300">
                             <div>
                                 <span
                                     class="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated
@@ -256,7 +272,7 @@
                                         id="tracker-driver-name">Rajesh Kumar</h3>
                                     <span
                                         class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                        ★ 4.9
+                                        ★ 4.9/5
                                     </span>
                                 </div>
                                 <div
@@ -273,7 +289,7 @@
                             class="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3 transition-colors duration-300">
                             <div class="flex justify-between items-center text-xs">
                                 <span class="text-slate-500 dark:text-slate-400">Status: <strong class="text-sky-400"
-                                        id="tracker-ride-status">Driver arriving in 3 mins</strong></span>
+                                        id="tracker-ride-status">Driver arriving in 1 mins</strong></span>
                                 <span class="font-bold text-slate-800 dark:text-white"
                                     id="tracker-progress-percentage">25%</span>
                             </div>
@@ -310,9 +326,10 @@
                 <!-- RIDE HISTORY LIST -->
                 <div
                     class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm dark:shadow-xl transition-all duration-300">
-                    
+
                     <!-- Tabs -->
-                    <div class="flex border-b border-slate-100 dark:border-neutral-900 pb-3 mb-4 gap-4 text-xs font-bold">
+                    <div
+                        class="flex border-b border-slate-100 dark:border-neutral-900 pb-3 mb-4 gap-4 text-xs font-bold">
                         <button id="tab-trips" onclick="switchHistoryTab('trips')"
                             class="pb-1.5 border-b-2 border-sky-500 text-sky-500 transition-all cursor-pointer">
                             🚗 Trips Log
@@ -324,9 +341,12 @@
                     </div>
 
                     <!-- Trips Header Block -->
-                    <div id="trips-header-block" class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                    <div id="trips-header-block"
+                        class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
                         <div>
-                            <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Your
+                            <h2
+                                class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">
+                                Your
                                 Trip History</h2>
                             <p class="text-xs text-slate-500 dark:text-slate-400">View your past completed bookings and
                                 invoice details</p>
@@ -342,10 +362,14 @@
                     </div>
 
                     <!-- Wallet Header Block -->
-                    <div id="wallet-header-block" style="display: none;" class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                    <div id="wallet-header-block" style="display: none;"
+                        class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
                         <div>
-                            <h2 class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Wallet Transactions</h2>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">View your wallet deposits, payments, and refunds</p>
+                            <h2
+                                class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">
+                                Wallet Transactions</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">View your wallet deposits, payments,
+                                and refunds</p>
                         </div>
                     </div>
 
@@ -464,7 +488,7 @@
         </div>
     </div>
 
-    <!-- PROFILE DETAILS MODAL -->
+    <!-- SETTINGS & PROFILE DETAILS MODAL -->
     <div id="profile-modal" style="display: none;"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
         <div
@@ -479,15 +503,30 @@
             <div class="text-center mb-6">
                 <div
                     class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 shadow-lg shadow-sky-500/5 mb-4 text-2xl">
-                    👤
+                    ⚙️
                 </div>
-                <h3 class="text-xl font-extrabold text-slate-800 dark:text-white">Profile Details</h3>
-                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Your registered user account profile
-                    information.</p>
+                <h3 class="text-xl font-extrabold text-slate-800 dark:text-white">Settings & Profile</h3>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Manage preferences and view account
+                    details.</p>
+            </div>
+
+            <!-- Preferences / Settings Section -->
+            <div class="mb-5 space-y-3">
+                <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Preferences
+                </h4>
+                <div
+                    class="flex items-center justify-between bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
+                    <span class="text-slate-650 dark:text-slate-300 text-xs font-semibold">Theme Mode</span>
+                    <button id="theme-toggle-btn" onclick="toggleTheme()" class="shrink-0">
+                        <!-- Loaded dynamically by mock-backend -->
+                    </button>
+                </div>
             </div>
 
             <!-- Details Roster -->
-            <div class="space-y-4 text-sm">
+            <div class="space-y-3">
+                <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Account
+                    Details</h4>
                 <div
                     class="bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3">
                     <div class="flex justify-between border-b border-slate-200/50 dark:border-neutral-900/60 pb-2">
@@ -510,10 +549,65 @@
                 </div>
             </div>
 
-            <!-- Close Button Footer -->
-            <button onclick="closeProfileModal()"
-                class="w-full py-3.5 px-4 rounded-xl font-bold bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-6 text-xs">
-                Close
+            <!-- Close & Logout Footer -->
+            <div class="grid grid-cols-2 gap-3 mt-6">
+                <button onclick="closeProfileModal()"
+                    class="py-3 px-4 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer text-xs border border-slate-200 dark:border-neutral-800">
+                    Close
+                </button>
+                <button onclick="logoutUser()"
+                    class="py-3 px-4 rounded-xl font-bold bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all cursor-pointer text-xs">
+                    Log Out
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEEDBACK & RATING MODAL (Shown after ride is completed) -->
+    <div id="feedback-modal" style="display: none;"
+        class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+            class="relative w-full max-w-md bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-800 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 shadow-sm dark:shadow-2xl transition-all duration-300">
+            <div class="text-center">
+                <!-- Premium Icon / Celebration emoji -->
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-4 text-3xl">
+                    🎉
+                </div>
+                <h3 class="text-xl font-extrabold text-slate-800 dark:text-white">Ride Completed!</h3>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">
+                    We hope you had a pleasant trip. Please rate your driver.
+                </p>
+            </div>
+
+            <!-- Driver Details Mini Panel -->
+            <div class="flex items-center gap-3 bg-slate-50/50 dark:bg-black/40 border border-slate-200/50 dark:border-neutral-900/60 rounded-xl p-3 my-4">
+                <span class="text-2xl">👨‍✈️</span>
+                <div class="text-left">
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-white" id="feedback-driver-name">Driver</h4>
+                    <span class="text-[9px] text-slate-500 dark:text-slate-400 font-mono" id="feedback-vehicle-info">Toyota Camry (MH12AB1234)</span>
+                </div>
+            </div>
+
+            <!-- Star Rating Selector -->
+            <div class="flex items-center justify-center gap-2 my-6">
+                <button onclick="selectFeedbackStars(1)" class="star-btn text-3xl text-slate-350 dark:text-neutral-700 hover:scale-110 active:scale-95 transition-all focus:outline-none" data-value="1">★</button>
+                <button onclick="selectFeedbackStars(2)" class="star-btn text-3xl text-slate-350 dark:text-neutral-700 hover:scale-110 active:scale-95 transition-all focus:outline-none" data-value="2">★</button>
+                <button onclick="selectFeedbackStars(3)" class="star-btn text-3xl text-slate-350 dark:text-neutral-700 hover:scale-110 active:scale-95 transition-all focus:outline-none" data-value="3">★</button>
+                <button onclick="selectFeedbackStars(4)" class="star-btn text-3xl text-slate-350 dark:text-neutral-700 hover:scale-110 active:scale-95 transition-all focus:outline-none" data-value="4">★</button>
+                <button onclick="selectFeedbackStars(5)" class="star-btn text-3xl text-slate-350 dark:text-neutral-700 hover:scale-110 active:scale-95 transition-all focus:outline-none" data-value="5">★</button>
+            </div>
+
+            <!-- Comment input -->
+            <div class="space-y-2">
+                <label class="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Leave a Comment (Optional)</label>
+                <textarea id="feedback-comment" rows="3" placeholder="How was your trip? Tell us more..."
+                    class="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-600 text-xs focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all resize-none"></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <button onclick="submitRideFeedback()"
+                class="w-full py-3.5 px-4 rounded-xl font-bold bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-6 text-xs shadow-lg shadow-sky-600/10">
+                Submit Review & Close
             </button>
         </div>
     </div>

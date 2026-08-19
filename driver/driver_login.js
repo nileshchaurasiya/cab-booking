@@ -83,7 +83,7 @@ function toggleAuthMode(mode) {
 }
 
 // Handles form submission
-function handleLoginSubmit(event) {
+async function handleLoginSubmit(event) {
     event.preventDefault();
 
     const emailInput = document.getElementById('auth-email').value.trim();
@@ -157,16 +157,16 @@ function handleLoginSubmit(event) {
     }
 
     // Save session and log in (forces role: 'driver')
-    loginSuccess(displayName, emailInput, selectedAuthRole, '', finalVehicle, authMode === 'signup');
+    await loginSuccess(displayName, emailInput, selectedAuthRole, '', finalVehicle, authMode === 'signup');
 }
 
-function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = false) {
+async function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = false) {
     try {
         if (isSignup) {
-            Backend.register(name, email, 'driver', 'default_password', address, vehicle);
+            await Backend.register(name, email, 'driver', 'default_password', address, vehicle);
         }
         
-        const user = Backend.login(email, 'default_password', 'driver');
+        const user = await Backend.login(email, 'default_password', 'driver');
         window.location.href = 'driver.html';
     } catch (e) {
         showToast(e.message);

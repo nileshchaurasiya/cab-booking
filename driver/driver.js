@@ -41,7 +41,7 @@ function showToast(message, type = 'error') {
 }
 
 // Session validation on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Check if user is logged in
     const user = Backend.getCurrentDriver();
     if (!user) {
@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedOnlineState = user.online;
 
         // Restore progress tracker from active booking if there is one
-        const activeBooking = Backend.getActiveBooking();
+        const activeBooking = await Backend.getActiveBooking();
         if (activeBooking) {
             if (activeBooking.status === 'accepted') {
                 driverTrackerProgress = 20; // restore to a mid-point for accepted
@@ -87,15 +87,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (needsSetup) {
-            toggleShiftStatus(false);
+            await toggleShiftStatus(false);
             if (user.justSignedUp) {
                 openVehicleModal(false);
             }
         } else {
             if (savedOnlineState) {
-                toggleShiftStatus(true);
+                await toggleShiftStatus(true);
             } else {
-                toggleShiftStatus(false);
+                await toggleShiftStatus(false);
             }
         }
 
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Toggle shift status between online and offline
-function toggleShiftStatus(forceState = null) {
+async function toggleShiftStatus(forceState = null) {
     let targetOnline = forceState !== null ? forceState : !isOnline;
 
     const user = Backend.getCurrentDriver();
@@ -127,7 +127,7 @@ function toggleShiftStatus(forceState = null) {
 
     // Save online state
     if (user) {
-        Backend.updateDriverOnlineStatus(user.email, isOnline);
+        await Backend.updateDriverOnlineStatus(user.email, isOnline);
     }
 
     if (isOnline) {
@@ -185,10 +185,10 @@ function stopPollingForBookings() {
 }
 
 // Core polling loop checking localStorage bookings
-function checkActiveBookings() {
+async function checkActiveBookings() {
     if (!isOnline) return;
 
-    const booking = Backend.getActiveBooking();
+    const booking = await Backend.getActiveBooking();
     if (!booking) {
         // No active booking found, return to waiting radar screen
         currentActiveBookingId = null;
@@ -352,8 +352,8 @@ function showWaitingRadarCard() {
 }
 
 // Action: Accept Customer Request
-function acceptRideRequest() {
-    const booking = Backend.getActiveBooking();
+async function acceptRideRequest() {
+    const booking = await Backend.getActiveBooking();
     if (!booking) {
         showToast("Error: Booking request no longer active!");
         showWaitingRadarCard();
@@ -367,19 +367,19 @@ function acceptRideRequest() {
             return;
         }
 
-        Backend.acceptBooking(booking.id, user.email);
+        await Backend.acceptBooking(booking.id, user.email);
         showToast("Booking request accepted! Head to pickup location.", "success");
 
         // Automatically start the ride after 2 seconds
-        setTimeout(() => {
-            const active = Backend.getActiveBooking();
+        setTimeout(async () => {
+            const active = await Backend.getActiveBooking();
             if (active && active.status === 'accepted') {
-                startActiveTrip();
+                await startActiveTrip();
             }
         }, 2000);
 
         // Refresh view immediately
-        checkActiveBookings();
+        await checkActiveBookings();
 
     } catch (e) {
         console.error("Accept request error", e);
@@ -388,10 +388,10 @@ function acceptRideRequest() {
 }
 
 // Action: Decline Request
-function declineRideRequest() {
-    const booking = Backend.getActiveBooking();
+async function declineRideRequest() {
+    const booking = await Backend.getActiveBooking();
     if (booking) {
-        Backend.cancelActiveBooking(booking.id, 'driver');
+        await Backend.cancelActiveBooking(booking.id, 'driver');
     }
     currentShownRequestId = null;
     showToast("Request declined.");
@@ -399,37 +399,37 @@ function declineRideRequest() {
 }
 
 // Action: Cancel Active Trip
-function cancelActiveTrip() {
-    const booking = Backend.getActiveBooking();
+async function cancelActiveTrip() {
+    const booking = await Backend.getActiveBooking();
     if (booking) {
-        Backend.cancelActiveBooking(booking.id, 'driver');
+        await Backend.cancelActiveBooking(booking.id, 'driver');
     }
     showToast("Ride cancelled successfully.");
     showWaitingRadarCard();
 }
 
 // Action: Start Active Trip (from pickup)
-function startActiveTrip() {
-    const booking = Backend.getActiveBooking();
+async function startActiveTrip() {
+    const booking = await Backend.getActiveBooking();
     if (!booking) return;
 
     try {
-        Backend.startBooking(booking.id);
+        await Backend.startBooking(booking.id);
         showToast("Ride started successfully!", "success");
 
-        checkActiveBookings();
+        await checkActiveBookings();
     } catch (e) {
         showToast(e.message);
     }
 }
 
 // Action: Complete Active Trip (arrived drop-off)
-function completeActiveTrip() {
-    const booking = Backend.getActiveBooking();
+async function completeActiveTrip() {
+    const booking = await Backend.getActiveBooking();
     if (!booking) return;
 
     try {
-        const completedBooking = Backend.completeActiveBooking(booking.id);
+        const completedBooking = await Backend.completeActiveBooking(booking.id);
 
         // Update displays from refreshed DB state
         const user = Backend.getCurrentDriver();
@@ -439,7 +439,7 @@ function completeActiveTrip() {
         }
 
         const driverShare = booking.fare * 0.90;
-        alert(`Ride completed! Your account has been credited with ₹${driverShare.toFixed(2)}`);
+        showToast(`Ride completed! Your account has been credited with ₹${driverShare.toFixed(2)}`, "success");
 
         // Rerender trip list
         renderTripsHistory();
@@ -568,7 +568,7 @@ function closeVehicleModal() {
     if (modal) modal.style.display = 'none';
 }
 
-function saveVehicleDetails(event) {
+async function saveVehicleDetails(event) {
     event.preventDefault();
 
     const brandModel = document.getElementById('modal-vehicle-model').value.trim();
@@ -594,7 +594,7 @@ function saveVehicleDetails(event) {
     }
 
     try {
-        Backend.updateDriverVehicle(user.email, brandModel, formattedPlate, cabClass);
+        await Backend.updateDriverVehicle(user.email, brandModel, formattedPlate, cabClass);
 
         // Update displays
         document.getElementById('driver-vehicle-number-header').textContent = formattedPlate;

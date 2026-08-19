@@ -91,7 +91,7 @@ function toggleAuthMode(mode) {
 }
 
 // Handles form submission
-function handleLoginSubmit(event) {
+async function handleLoginSubmit(event) {
     event.preventDefault();
 
     const emailInput = document.getElementById('auth-email').value.trim();
@@ -175,10 +175,10 @@ function handleLoginSubmit(event) {
     }
 
     // Save session and log in (redirects automatically)
-    loginSuccess(displayName, emailInput, selectedAuthRole, addressInput, '', authMode === 'signup');
+    await loginSuccess(displayName, emailInput, selectedAuthRole, addressInput, '', authMode === 'signup');
 }
 
-function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = false) {
+async function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = false) {
     // Check if roles are encoded in the email/username to support testing other panels
     let resolvedRole = role;
     if (email.toLowerCase().includes('driver')) {
@@ -189,10 +189,10 @@ function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = 
 
     try {
         if (isSignup) {
-            Backend.register(name, email, resolvedRole, 'default_password', address, vehicle);
+            await Backend.register(name, email, resolvedRole, 'default_password', address, vehicle);
         }
         
-        const user = Backend.login(email, 'default_password', resolvedRole);
+        const user = await Backend.login(email, 'default_password', resolvedRole);
 
         if (resolvedRole === 'customer') {
             window.location.href = 'customer.html';
