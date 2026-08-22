@@ -1,5 +1,26 @@
-node_modules/
+# Mac system files
 .DS_Store
-.agents/
-.gemini/
-*.log
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local environment files (backend/frontend subfolders)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Local databases
+cab-backend-php/database/*.sqlite
+cab-backend-php/database/*.sqlite-journal
