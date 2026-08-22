@@ -82,10 +82,11 @@ class CustomerRideController extends Controller
             'payment_method' => 'nullable|string|in:cash,card,wallet',
             'scheduled_at' => 'nullable|date|after:now',
             'vehicle_type' => 'nullable|string',
+            'distance' => 'required|numeric|min:0',
         ]);
 
-        // Generate a random distance between 2 km and 30 km (decimal distance)
-        $distanceKm = round(rand(20, 300) / 10, 1);
+        // Use the distance calculated by the frontend
+        $distanceKm = (float) $validated['distance'];
 
         // Normalize vehicle rate
         $vehicleInput = strtolower($request->input('vehicle_type', 'car'));
@@ -100,8 +101,8 @@ class CustomerRideController extends Controller
             $vehicleType = 'Rickshaw';
         }
 
-        // Formula: Total Fare = Base Fare (50) + (Distance * Vehicle Rate)
-        $estimatedFare = round(50.00 + ($distanceKm * $rate), 2);
+        // Formula: Total Fare = Distance * Vehicle Rate (no base fare)
+        $estimatedFare = round($distanceKm * $rate, 2);
         
         // Estimated duration: average speed 30km/h
         $estimatedDuration = ceil(($distanceKm / 30) * 60);
@@ -128,6 +129,8 @@ class CustomerRideController extends Controller
                 'payment_method' => $validated['payment_method'] ?? 'cash',
                 'payment_status' => 'pending',
                 'amount' => $estimatedFare,
+                'admin_commission' => round($estimatedFare * 0.10, 2),
+                'driver_earning' => round($estimatedFare * 0.90, 2),
             ]);
 
             return response()->json([

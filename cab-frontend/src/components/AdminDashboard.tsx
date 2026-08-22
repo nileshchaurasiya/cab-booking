@@ -24,6 +24,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
 
   // Modals state
   const [showAddDriverModal, setShowAddDriverModal] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   // Form inputs for direct driver registration
   const [driverForm, setDriverForm] = useState({
@@ -129,6 +130,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
   const handleAddDriverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegisteringDriver(true);
+    setModalError('');
 
     try {
       await apiRequest('/register', {
@@ -157,6 +159,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
       fetchDrivers();
       fetchStats();
     } catch (err: any) {
+      setModalError(err.message || 'Failed to register driver account.');
       addToast(err.message || 'Failed to register driver account.', 'error');
     } finally {
       setRegisteringDriver(false);
@@ -228,7 +231,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6">
 
       {/* Toast Alert Banner */}
-      <div className="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -258,7 +261,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setShowAddDriverModal(true)}
+            onClick={() => { setModalError(''); setShowAddDriverModal(true); }}
             className="flex items-center gap-1 px-4 py-2.5 bg-sky-500 hover:bg-sky-400 text-black text-xs font-bold rounded-xl transition-all cursor-pointer shadow-lg shadow-sky-550/10"
           >
             <Plus className="w-4 h-4" />
@@ -274,7 +277,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
           <div>
             <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block">Admin Commission (10%)</span>
             <strong className="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mt-1 block">
-              ₹{(stats.total_earnings * 0.1).toFixed(2)}
+              ₹{(stats.total_earnings).toFixed(2)}
             </strong>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
@@ -518,6 +521,11 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
               <h3 className="text-xl font-extrabold text-slate-800 dark:text-white">Add New Driver</h3>
               <p className="text-xs text-slate-500 dark:text-neutral-400">Create a driver account partner credentials instantly.</p>
             </div>
+            {modalError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center font-medium">
+                {modalError}
+              </div>
+            )}
             <form onSubmit={handleAddDriverSubmit} className="space-y-4">
               <div>
                 <input

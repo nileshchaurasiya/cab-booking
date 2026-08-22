@@ -83,11 +83,12 @@ class DriverController extends Controller
                 $dist = acos(min(max($dist, -1.0), 1.0));
                 $dist = rad2deg($dist);
                 $miles = $dist * 60 * 1.1515;
-                $ride->distance = round($miles * 1.609344, 2);
+                $distKm = round($miles * 1.609344, 2);
+                $ride->driver_distance_to_pickup = $distKm;
                 return $ride;
             })
             ->filter(function ($ride) use ($radius) {
-                return $ride->distance <= $radius;
+                return $ride->driver_distance_to_pickup <= $radius;
             })
             ->sortBy('distance')
             ->values();

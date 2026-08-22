@@ -15,7 +15,7 @@ class AdminController extends Controller
      */
     public function dashboard(Request $request)
     {
-        $totalEarnings = Payment::where('payment_status', 'completed')->sum('amount');
+        $totalEarnings = Payment::where('payment_status', 'completed')->sum('admin_commission');
         $totalCompletedRides = Ride::where('status', 'completed')->count();
         $totalUsers = User::count();
         $activeDrivers = DriverDetail::where('is_available', true)->count();

@@ -28,6 +28,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
   const [dropoff, setDropoff] = useState('');
   const [selectedCab, setSelectedCab] = useState({ name: 'Car', rate: 30 });
   const [bookingRide, setBookingRide] = useState(false);
+  const [previewDistance, setPreviewDistance] = useState(0);
 
   // Active Ride tracking
   const [activeRide, setActiveRide] = useState<any>(null);
@@ -66,6 +67,19 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     fetchHistory();
     fetchActiveRide();
   }, []);
+
+  // Recalculate distance whenever pickup or dropoff changes
+  useEffect(() => {
+    const p = pickup.trim();
+    const d = dropoff.trim();
+    if (!p || !d) {
+      setPreviewDistance(0);
+    } else {
+      // Generate a new random distance between 3.0 and 22.0 km
+      const newDist = parseFloat((Math.random() * (22 - 3) + 3).toFixed(1));
+      setPreviewDistance(newDist);
+    }
+  }, [pickup, dropoff]);
 
   const fetchActiveRide = async () => {
     try {
@@ -120,6 +134,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
           dropoff_longitude: 77.6408,
           payment_method: 'wallet',
           vehicle_type: selectedCab.name,
+          distance: previewDistance,
         }),
       });
 
@@ -400,12 +415,12 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                   {/* Estimation Panel */}
                   <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs mt-2 transition-colors duration-300">
                     <div>
-                      <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated Fare (10 km preview)</span>
-                      <strong className="text-base text-sky-400 mt-0.5 block">₹{calculateFare(selectedCab.name, 10.0).toFixed(2)}</strong>
+                      <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated Fare</span>
+                      <strong className="text-base text-sky-400 mt-0.5 block">₹{calculateFare(selectedCab.name, previewDistance, pickup, dropoff).toFixed(2)}</strong>
                     </div>
                     <div className="text-right">
-                      <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Preview Dist.</span>
-                      <strong className="text-xs text-slate-800 dark:text-white mt-0.5 block">10.0 km</strong>
+                      <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Est. Distance</span>
+                      <strong className="text-xs text-slate-800 dark:text-white mt-0.5 block">{previewDistance.toFixed(1)} km</strong>
                     </div>
                   </div>
 

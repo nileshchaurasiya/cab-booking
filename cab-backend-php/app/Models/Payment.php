@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
     'payment_method',
     'payment_status',
     'amount',
+    'admin_commission',
+    'driver_earning',
     'transaction_reference'
 ])]
 class Payment extends Model
@@ -19,6 +21,8 @@ class Payment extends Model
 
     protected $casts = [
         'amount' => 'float',
+        'admin_commission' => 'float',
+        'driver_earning' => 'float',
     ];
 
     public function ride()

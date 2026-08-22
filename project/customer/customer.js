@@ -3,12 +3,14 @@
    ========================================================================== */
 
 let currentCabClass = 'Car';
-let currentRatePerKm = 50;
+let currentRatePerKm = 30;
 let currentDistance = 0; // Default to 0
 let walletAmount = 2000.00;
 let currentFare = 0; // Default to 0
 let bookingProgressInterval = null;
 let currentTrackerProgress = 10;
+let previousPickup = ''; // Track previous pickup to detect changes
+let previousDrop = ''; // Track previous drop to detect changes
 
 // Function to randomize distance
 function randomizeDistance() {
@@ -66,7 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initial distance & fare estimate simulation (sets to 0 since inputs are empty)
         updateFareEstimate();
 
-        // Listen for input changes to dynamically toggle zero state or randomize on focus-out
+        // Listen for input changes to dynamically recalculate distance and fare
         const pickupField = document.getElementById('booking-pickup');
         const dropoffField = document.getElementById('booking-dropoff');
         if (pickupField && dropoffField) {
@@ -74,27 +76,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const pickupVal = pickupField.value.trim();
                 const dropoffVal = dropoffField.value.trim();
 
-                if (pickupVal && dropoffVal) {
+                if (!pickupVal || !dropoffVal) {
+                    // Either field is empty: reset distance and fare to 0
+                    currentDistance = 0;
+                    previousPickup = pickupVal;
+                    previousDrop = dropoffVal;
+                } else {
+                    // Both fields have values — check if either changed
+                    if (pickupVal !== previousPickup || dropoffVal !== previousDrop) {
+                        // Location changed: recalculate distance
+                        randomizeDistance();
+                        previousPickup = pickupVal;
+                        previousDrop = dropoffVal;
+                    }
+                    // If neither changed and distance is already set, keep it
                     if (currentDistance === 0) {
                         randomizeDistance();
                     }
-                } else {
-                    currentDistance = 0;
                 }
                 updateFareEstimate();
             };
 
             pickupField.addEventListener('input', handleInputChange);
             dropoffField.addEventListener('input', handleInputChange);
-
-            const handleBlurChange = () => {
-                if (pickupField.value.trim() && dropoffField.value.trim()) {
-                    randomizeDistance();
-                    updateFareEstimate();
-                }
-            };
-            pickupField.addEventListener('blur', handleBlurChange);
-            dropoffField.addEventListener('blur', handleBlurChange);
         }
 
         // Check for active booking
@@ -186,6 +190,8 @@ function selectCabClass(className, ratePerKm) {
 }
 
 // Update calculated estimate output based on current selections
+// Formula: Fare = Distance × Vehicle Rate
+// If either pickup or drop is empty: Fare = ₹0, Distance = 0
 function updateFareEstimate() {
     const pickupField = document.getElementById('booking-pickup');
     const dropoffField = document.getElementById('booking-dropoff');
@@ -200,7 +206,8 @@ function updateFareEstimate() {
         if (currentDistance === 0) {
             randomizeDistance();
         }
-        currentFare = Math.round(currentDistance * currentRatePerKm);
+        // Fare = distance × vehicle rate (no base fare)
+        currentFare = currentDistance * currentRatePerKm;
     }
 
     document.getElementById('estimate-fare-display').textContent = `₹${currentFare.toFixed(2)}`;
@@ -247,7 +254,8 @@ function handleCabRequest(event) {
 
         try {
             const booking = await Backend.createBooking(customer.name, customer.email, pickupVal, dropoffVal, currentDistance, currentFare, currentCabClass);
-            walletAmount = customer.wallet - currentFare;
+            const updatedCustomer = Backend.getCurrentCustomer();
+            walletAmount = updatedCustomer ? updatedCustomer.wallet : customer.wallet;
             document.getElementById('wallet-balance').textContent = walletAmount.toFixed(2);
 
             // Toggle view
@@ -311,7 +319,6 @@ function startBookingPolling(pickup, dropoff) {
                 hasShownDriverUnavailable = false;
             }
 
-            let targetProgress = 10;
             let statusMessage = "Waiting for driver to accept...";
 
             if (booking.status === 'accepted') {
@@ -319,11 +326,9 @@ function startBookingPolling(pickup, dropoff) {
                 document.getElementById('tracker-vehicle-name').textContent = booking.driverVehicle;
                 document.getElementById('tracker-vehicle-number').textContent = booking.driverPlate;
 
-                targetProgress = 40;
-                if (currentTrackerProgress < targetProgress) {
-                    currentTrackerProgress += 1.5; // slow crawl (takes ~30s to reach 40%)
-                }
-                statusMessage = currentTrackerProgress < 38 ? "Driver accepted! Arriving at pickup..." : "Driver arrived! Waiting for driver to start ride...";
+                currentTrackerProgress = 40;
+                statusMessage = "Driver accepted! Arriving at pickup...";
+                
                 // Prevent cancellation once ride is accepted/started
                 const cancelBtn = document.getElementById('btn-cancel-ride');
                 if (cancelBtn) {
@@ -350,14 +355,8 @@ function startBookingPolling(pickup, dropoff) {
             }
 
             if (booking.status === 'started') {
-                if (currentTrackerProgress < 50) {
-                    currentTrackerProgress = 50;
-                }
-                targetProgress = 95;
-                if (currentTrackerProgress < targetProgress) {
-                    currentTrackerProgress += 1.0; // slow crawl (takes ~82s to reach 95%)
-                }
-                statusMessage = currentTrackerProgress < 90 ? "Ride started! En route to destination..." : "Almost there! Arriving soon...";
+                currentTrackerProgress = 70;
+                statusMessage = "Ride started! En route to destination...";
 
                 // Prevent cancellation once ride is accepted/started
                 const cancelBtn = document.getElementById('btn-cancel-ride');

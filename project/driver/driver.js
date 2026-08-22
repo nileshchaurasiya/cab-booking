@@ -80,9 +80,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const activeBooking = await Backend.getActiveBooking();
         if (activeBooking) {
             if (activeBooking.status === 'accepted') {
-                driverTrackerProgress = 20; // restore to a mid-point for accepted
+                driverTrackerProgress = 40; // change from 20 to 40
             } else if (activeBooking.status === 'started') {
-                driverTrackerProgress = 50; // restore to a mid-point for started
+                driverTrackerProgress = 70; // change from 50 to 70
             }
         }
 
@@ -299,15 +299,10 @@ async function checkActiveBookings() {
                 activeTitle.textContent = "On the way to Pickup";
                 activeSubtitle.textContent = "Head to customer pickup location immediately.";
 
-                // Restore progress from at least 10% when accepted
-                if (driverTrackerProgress < 10) driverTrackerProgress = 10;
-                if (driverTrackerProgress < 40) {
-                    driverTrackerProgress += 1.5; // crawl
-                }
-                const floorProgress = Math.floor(driverTrackerProgress);
-                progressText.textContent = driverTrackerProgress < 38 ? "Arriving at pickup location..." : "Arrived! Waiting to start ride...";
-                progressPercentage.textContent = `${floorProgress}%`;
-                progressBar.style.width = `${floorProgress}%`;
+                driverTrackerProgress = 40;
+                progressText.textContent = "Heading to pickup location...";
+                progressPercentage.textContent = "40%";
+                progressBar.style.width = "40%";
 
                 buttonsGroup.innerHTML = `
                     <button onclick="startActiveTrip()" class="w-full py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer shadow-lg shadow-sky-500/10">
@@ -319,16 +314,10 @@ async function checkActiveBookings() {
                 activeTitle.textContent = "En Route to Destination";
                 activeSubtitle.textContent = "Driving customer safely to their destination.";
 
-                if (driverTrackerProgress < 50) {
-                    driverTrackerProgress = 50;
-                }
-                if (driverTrackerProgress < 95) {
-                    driverTrackerProgress += 1.0; // crawl
-                }
-                const floorProgress = Math.floor(driverTrackerProgress);
-                progressText.textContent = driverTrackerProgress < 90 ? "En route to destination..." : "Almost at destination...";
-                progressPercentage.textContent = `${floorProgress}%`;
-                progressBar.style.width = `${floorProgress}%`;
+                driverTrackerProgress = 70;
+                progressText.textContent = "En route to destination...";
+                progressPercentage.textContent = "70%";
+                progressBar.style.width = "70%";
 
                 buttonsGroup.innerHTML = `
                     <button onclick="completeActiveTrip()" class="col-span-2 py-3 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer shadow-lg shadow-emerald-500/10">

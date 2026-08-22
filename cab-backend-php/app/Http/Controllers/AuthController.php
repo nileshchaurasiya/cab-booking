@@ -13,13 +13,23 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $validatedData = $request->validate([
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'phone' => 'required|string|max:20|unique:users',
             'password' => 'required|string|min:6|confirmed',
             'role' => 'required|string|in:customer,driver',
-        ]);
+        ];
+
+        if ($request->filled('license_number')) {
+            $rules['license_number'] = 'required|string|max:50|unique:driver_details,license_number';
+            $rules['vehicle_model'] = 'required|string|max:255';
+            $rules['vehicle_plate_number'] = 'required|string|max:50|unique:driver_details,vehicle_plate_number';
+            $rules['vehicle_color'] = 'required|string|max:50';
+            $rules['vehicle_type'] = 'required|string|in:sedan,suv,hatchback,bike';
+        }
+
+        $validatedData = $request->validate($rules);
 
         return DB::transaction(function () use ($validatedData) {
             $user = User::create([
@@ -30,6 +40,21 @@ class AuthController extends Controller
                 'role' => $validatedData['role'],
                 'status' => 'active',
             ]);
+
+            if ($user->role === 'driver' && isset($validatedData['license_number'])) {
+                DriverDetail::create([
+                    'user_id' => $user->id,
+                    'license_number' => $validatedData['license_number'],
+                    'vehicle_model' => $validatedData['vehicle_model'],
+                    'vehicle_plate_number' => $validatedData['vehicle_plate_number'],
+                    'vehicle_color' => $validatedData['vehicle_color'],
+                    'vehicle_type' => $validatedData['vehicle_type'],
+                    'is_available' => false,
+                    'current_latitude' => 12.9716, // Default coordinate near Bangalore
+                    'current_longitude' => 77.5946,
+                    'rating' => 5.0,
+                ]);
+            }
 
             $token = $user->createToken('auth_token')->plainTextToken;
 

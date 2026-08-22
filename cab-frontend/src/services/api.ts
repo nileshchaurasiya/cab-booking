@@ -32,19 +32,33 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || 'Something went wrong');
+    let errorMessage = data.message || 'Something went wrong';
+    
+    // If Laravel validation errors exist, extract the first specific error message
+    if (data.errors && typeof data.errors === 'object') {
+      const firstKey = Object.keys(data.errors)[0];
+      if (firstKey && Array.isArray(data.errors[firstKey]) && data.errors[firstKey].length > 0) {
+        errorMessage = data.errors[firstKey][0];
+      }
+    }
+    
+    throw new Error(errorMessage);
   }
 
   return data;
 };
 
-export const calculateFare = (vehicleType: string, distance: number): number => {
-  const normalized = vehicleType.toLowerCase();
-  let rate = 30; // default to car
-  if (normalized === 'bike') {
-    rate = 10;
-  } else if (normalized === 'rickshaw' || normalized === 'auto rickshaw' || normalized === 'auto') {
-    rate = 20;
+export const calculateFare = (vehicleType: string, distance: number, pickup?: string, dropoff?: string): number => {
+  if (!pickup || !dropoff || !pickup.trim() || !dropoff.trim()) {
+    return 0;
   }
-  return 50.00 + (distance * rate);
+  const normalized = vehicleType.toLowerCase();
+  let rate = 30; // Car = 30/km
+  if (normalized === 'bike') {
+    rate = 10; // Bike = 10/km
+  } else if (normalized === 'rickshaw' || normalized === 'auto rickshaw' || normalized === 'auto') {
+    rate = 20; // Rickshaw = 20/km
+  }
+  return distance * rate;
 };
+
