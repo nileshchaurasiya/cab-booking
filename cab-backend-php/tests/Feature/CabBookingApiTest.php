@@ -158,6 +158,7 @@ class CabBookingApiTest extends TestCase
                 'pickup_longitude' => 77.5946,
                 'dropoff_latitude' => 12.9784,
                 'dropoff_longitude' => 77.6408,
+                'distance' => 12.5,
                 'payment_method' => 'cash'
             ]);
 

@@ -90,14 +90,14 @@ class CustomerRideController extends Controller
 
         // Normalize vehicle rate
         $vehicleInput = strtolower($request->input('vehicle_type', 'car'));
-        $rate = 30; // Car
+        $rate = config('cab.vehicle_rates.car', 30); // Car
         $vehicleType = 'Car';
 
         if ($vehicleInput === 'bike') {
-            $rate = 10;
+            $rate = config('cab.vehicle_rates.bike', 10);
             $vehicleType = 'Bike';
         } elseif ($vehicleInput === 'rickshaw' || $vehicleInput === 'auto rickshaw' || $vehicleInput === 'auto') {
-            $rate = 20;
+            $rate = config('cab.vehicle_rates.rickshaw', 20);
             $vehicleType = 'Rickshaw';
         }
 
@@ -116,7 +116,7 @@ class CustomerRideController extends Controller
                 'pickup_longitude' => $validated['pickup_longitude'],
                 'dropoff_latitude' => $validated['dropoff_latitude'],
                 'dropoff_longitude' => $validated['dropoff_longitude'],
-                'status' => 'requested',
+                'status' => Ride::STATUS_REQUESTED,
                 'vehicle_type' => $vehicleType,
                 'fare' => $estimatedFare,
                 'distance' => $distanceKm,
@@ -129,8 +129,8 @@ class CustomerRideController extends Controller
                 'payment_method' => $validated['payment_method'] ?? 'cash',
                 'payment_status' => 'pending',
                 'amount' => $estimatedFare,
-                'admin_commission' => round($estimatedFare * 0.10, 2),
-                'driver_earning' => round($estimatedFare * 0.90, 2),
+                'admin_commission' => round($estimatedFare * (config('cab.commission_percentage', 10) / 100), 2),
+                'driver_earning' => round($estimatedFare * ((100 - config('cab.commission_percentage', 10)) / 100), 2),
             ]);
 
             return response()->json([
@@ -172,13 +172,13 @@ class CustomerRideController extends Controller
     {
         $ride = Ride::where('customer_id', $request->user()->id)->findOrFail($id);
 
-        if (!in_array($ride->status, ['requested', 'accepted'])) {
+        if (!in_array($ride->status, [Ride::STATUS_REQUESTED, Ride::STATUS_ACCEPTED])) {
             return response()->json([
                 'message' => 'Cannot cancel a ride that is already in progress, completed, or cancelled.'
             ], 422);
         }
 
-        $ride->status = 'cancelled';
+        $ride->status = Ride::STATUS_CANCELLED;
         $ride->save();
 
         if ($ride->payment) {
@@ -208,7 +208,7 @@ class CustomerRideController extends Controller
     {
         $ride = Ride::where('customer_id', $request->user()->id)->findOrFail($id);
 
-        if ($ride->status !== 'completed') {
+        if ($ride->status !== Ride::STATUS_COMPLETED) {
             return response()->json([
                 'message' => 'You can only review completed rides.'
             ], 422);

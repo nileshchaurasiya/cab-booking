@@ -18,7 +18,7 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'phone' => 'required|string|max:20|unique:users',
             'password' => 'required|string|min:6|confirmed',
-            'role' => 'required|string|in:customer,driver',
+            'role' => 'required|string|in:' . User::ROLE_CUSTOMER . ',' . User::ROLE_DRIVER,
         ];
 
         if ($request->filled('license_number')) {
@@ -38,10 +38,10 @@ class AuthController extends Controller
                 'phone' => $validatedData['phone'],
                 'password' => Hash::make($validatedData['password']),
                 'role' => $validatedData['role'],
-                'status' => 'active',
+                'status' => User::STATUS_ACTIVE,
             ]);
 
-            if ($user->role === 'driver' && isset($validatedData['license_number'])) {
+            if ($user->role === User::ROLE_DRIVER && isset($validatedData['license_number'])) {
                 DriverDetail::create([
                     'user_id' => $user->id,
                     'license_number' => $validatedData['license_number'],
@@ -81,7 +81,7 @@ class AuthController extends Controller
             ]);
         }
 
-        if ($user->status === 'suspended') {
+        if ($user->status === User::STATUS_SUSPENDED) {
             return response()->json([
                 'message' => 'Your account has been suspended by an administrator.'
             ], 403);

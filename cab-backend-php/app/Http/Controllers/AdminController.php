@@ -16,7 +16,7 @@ class AdminController extends Controller
     public function dashboard(Request $request)
     {
         $totalEarnings = Payment::where('payment_status', 'completed')->sum('admin_commission');
-        $totalCompletedRides = Ride::where('status', 'completed')->count();
+        $totalCompletedRides = Ride::where('status', Ride::STATUS_COMPLETED)->count();
         $totalUsers = User::count();
         $activeDrivers = DriverDetail::where('is_available', true)->count();
 
@@ -67,7 +67,7 @@ class AdminController extends Controller
     public function updateUserStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|string|in:active,suspended'
+            'status' => 'required|string|in:' . User::STATUS_ACTIVE . ',' . User::STATUS_SUSPENDED
         ]);
 
         $user = User::findOrFail($id);

@@ -66,7 +66,7 @@ class DriverController extends Controller
         $minLon = $lon - $lonDelta;
         $maxLon = $lon + $lonDelta;
 
-        $rides = Ride::where('status', 'requested')
+        $rides = Ride::where('status', Ride::STATUS_REQUESTED)
             ->whereBetween('pickup_latitude', [$minLat, $maxLat])
             ->whereBetween('pickup_longitude', [$minLon, $maxLon])
             ->with('customer:id,name,phone')
@@ -113,7 +113,7 @@ class DriverController extends Controller
 
         $ride = Ride::findOrFail($id);
 
-        if ($ride->status !== 'requested') {
+        if ($ride->status !== Ride::STATUS_REQUESTED) {
             return response()->json([
                 'message' => 'This ride has already been accepted or cancelled.'
             ], 422);
@@ -122,7 +122,7 @@ class DriverController extends Controller
         return DB::transaction(function () use ($ride, $request, $driverDetail) {
             $ride->update([
                 'driver_id' => $request->user()->id,
-                'status' => 'accepted'
+                'status' => Ride::STATUS_ACCEPTED
             ]);
 
             // Set driver status to occupied
@@ -146,7 +146,7 @@ class DriverController extends Controller
 
         $ride = Ride::where('driver_id', $request->user()->id)->findOrFail($id);
 
-        if (in_array($ride->status, ['completed', 'cancelled'])) {
+        if (in_array($ride->status, [Ride::STATUS_COMPLETED, Ride::STATUS_CANCELLED])) {
             return response()->json([
                 'message' => 'Cannot update the status of a finished or cancelled ride.'
             ], 422);
@@ -155,10 +155,10 @@ class DriverController extends Controller
         $newStatus = $request->status;
 
         // Ensure status progression is logical
-        if ($newStatus === 'in_progress' && $ride->status !== 'arrived' && $ride->status !== 'accepted') {
+        if ($newStatus === 'in_progress' && $ride->status !== Ride::STATUS_ARRIVED && $ride->status !== Ride::STATUS_ACCEPTED) {
             return response()->json(['message' => 'Invalid status progression.'], 422);
         }
-        if ($newStatus === 'completed' && $ride->status !== 'in_progress') {
+        if ($newStatus === 'completed' && $ride->status !== Ride::STATUS_IN_PROGRESS) {
             return response()->json(['message' => 'Cannot complete a ride that has not started.'], 422);
         }
 
@@ -166,7 +166,7 @@ class DriverController extends Controller
             $ride->status = $newStatus;
             $ride->save();
 
-            if ($newStatus === 'completed') {
+            if ($newStatus === Ride::STATUS_COMPLETED) {
                 // Free the driver
                 $driverDetail = DriverDetail::where('user_id', $request->user()->id)->first();
                 if ($driverDetail) {

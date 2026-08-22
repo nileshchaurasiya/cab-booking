@@ -16,6 +16,12 @@ use Laravel\Sanctum\HasApiTokens;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
+    public const ROLE_CUSTOMER = 'customer';
+    public const ROLE_DRIVER = 'driver';
+    public const ROLE_ADMIN = 'admin';
+
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_SUSPENDED = 'suspended';
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 

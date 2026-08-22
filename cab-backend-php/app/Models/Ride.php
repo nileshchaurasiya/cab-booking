@@ -24,6 +24,12 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 ])]
 class Ride extends Model
 {
+    public const STATUS_REQUESTED = 'requested';
+    public const STATUS_ACCEPTED = 'accepted';
+    public const STATUS_ARRIVED = 'arrived';
+    public const STATUS_IN_PROGRESS = 'in_progress';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_CANCELLED = 'cancelled';
     use HasFactory;
 
     protected $casts = [
