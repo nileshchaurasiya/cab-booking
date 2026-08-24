@@ -13,9 +13,6 @@ let progressInterval = null;
 
 function animateProgressBar(targetProgress) {
     if (currentTargetProgress === targetProgress) return;
-    
-    // If it's the very first time setting a target (like on page refresh), snap instantly
-    const isFirstLoad = currentTargetProgress === null;
     currentTargetProgress = targetProgress;
 
     if (progressInterval) clearInterval(progressInterval);
@@ -25,13 +22,6 @@ function animateProgressBar(targetProgress) {
 
     if (currentDisplayProgress === null) {
         currentDisplayProgress = parseInt(progressPercentage.textContent) || 0;
-    }
-
-    if (isFirstLoad) {
-        currentDisplayProgress = targetProgress;
-        progressPercentage.textContent = targetProgress + "%";
-        progressBar.style.width = targetProgress + "%";
-        return;
     }
 
     if (currentDisplayProgress === targetProgress) {

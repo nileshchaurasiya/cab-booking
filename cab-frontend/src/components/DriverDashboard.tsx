@@ -114,17 +114,9 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       if (active) {
         setActiveTrip(active);
         setIsOnline(true);
-        let targetProg = 0;
-        if (active.status === 'accepted') targetProg = 30;
-        if (active.status === 'arrived') targetProg = 60;
-        if (active.status === 'in_progress') targetProg = 90;
-
-        setTripProgress((prev) => {
-          if (prev === 0 && targetProg > 0) {
-            setDisplayProgress(targetProg); // Instant snap on page refresh
-          }
-          return targetProg;
-        });
+        if (active.status === 'accepted') setTripProgress(30);
+        if (active.status === 'arrived') setTripProgress(60);
+        if (active.status === 'in_progress') setTripProgress(90);
       }
     } catch (err) {
       console.error(err);
