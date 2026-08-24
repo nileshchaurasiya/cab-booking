@@ -32,7 +32,25 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
   // Active Ride tracking
   const [activeRide, setActiveRide] = useState<any>(null);
-  const [progressPercentage, setProgressPercentage] = useState(25);
+  const [progressPercentage, setProgressPercentage] = useState(0);
+  const [displayProgress, setDisplayProgress] = useState(0);
+
+  // Slowly animate displayProgress toward progressPercentage (~1% per 500ms)
+  useEffect(() => {
+    if (displayProgress === progressPercentage) return;
+    const step = displayProgress < progressPercentage ? 1 : -1;
+    const interval = setInterval(() => {
+      setDisplayProgress((prev) => {
+        const next = prev + step;
+        if ((step > 0 && next >= progressPercentage) || (step < 0 && next <= progressPercentage)) {
+          clearInterval(interval);
+          return progressPercentage;
+        }
+        return next;
+      });
+    }, 500);
+    return () => clearInterval(interval);
+  }, [progressPercentage]);
 
   // History list
   const [historyRides, setHistoryRides] = useState<any[]>([]);
@@ -67,6 +85,15 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     fetchHistory();
     fetchActiveRide();
   }, []);
+
+  // Poll for ride status updates every 5 seconds when a ride is active
+  useEffect(() => {
+    if (!activeRide) return;
+    const pollInterval = setInterval(() => {
+      fetchActiveRide();
+    }, 5000);
+    return () => clearInterval(pollInterval);
+  }, [activeRide?.id, activeRide?.status]);
 
   // Recalculate distance whenever pickup or dropoff changes
   useEffect(() => {
@@ -140,6 +167,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
       const ride = res.ride;
       setActiveRide(ride);
+      setDisplayProgress(0); // Reset animation
       setProgressPercentage(15);
       addToast('Ride requested successfully! Searching for drivers.');
 
@@ -202,6 +230,17 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
       return;
     }
 
+    const MAX_WALLET_BALANCE = 2000;
+    if (walletBalance + amount > MAX_WALLET_BALANCE) {
+      const maxAllowed = MAX_WALLET_BALANCE - walletBalance;
+      if (maxAllowed <= 0) {
+        addToast(`Wallet limit is ₹${MAX_WALLET_BALANCE}. Your wallet is already full!`, 'error');
+      } else {
+        addToast(`Wallet limit is ₹${MAX_WALLET_BALANCE}. You can add up to ₹${maxAllowed.toFixed(2)} more.`, 'error');
+      }
+      return;
+    }
+
     setWalletBalance((prev) => prev + amount);
     setWalletTransactions((prev) => [
       {
@@ -247,7 +286,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
 
       {/* Toast Notification Banner Container */}
-      <div className="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
+      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -466,7 +505,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                         )}
                       </div>
                       <div className="flex items-center justify-between mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        <span>{activeRide.driver?.driver_detail?.vehicle_model || selectedCab.name}</span>
+                        <span>{activeRide.driver?.driver_detail?.vehicle_model || activeRide.vehicle_type || 'Searching...'}</span>
                         <span className="font-mono text-slate-800 dark:text-white font-bold">
                           {activeRide.driver?.driver_detail?.vehicle_plate_number || 'WAITING'}
                         </span>
@@ -480,12 +519,12 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                       <span className="text-slate-500 dark:text-slate-400">
                         Status: <strong className="text-sky-400">{activeRide.status.toUpperCase()}</strong>
                       </span>
-                      <span className="font-bold text-slate-800 dark:text-white">{progressPercentage}%</span>
+                      <span className="font-bold text-slate-800 dark:text-white">{Math.round(displayProgress)}%</span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-neutral-900 h-2 rounded-full overflow-hidden">
                       <div
-                        className="bg-gradient-to-r from-sky-400 to-indigo-500 h-full rounded-full transition-all duration-700"
-                        style={{ width: `${progressPercentage}%` }}
+                        className="bg-gradient-to-r from-sky-400 to-indigo-500 h-full rounded-full transition-all duration-300 ease-linear"
+                        style={{ width: `${displayProgress}%` }}
                       ></div>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500">
@@ -597,7 +636,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                                 {ride.pickup_address} → {ride.dropoff_address}
                               </h4>
                               <span className="text-[9px] text-slate-500 dark:text-slate-400">
-                                {new Date(ride.created_at).toLocaleString()} • {selectedCab.name} (Driver: {ride.driver?.name || 'None'})
+                                {new Date(ride.created_at).toLocaleString()} • {ride.vehicle_type || 'Car'} (Driver: {ride.driver?.name || 'None'})
                               </span>
                             </div>
                           </div>
@@ -782,7 +821,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
               <div className="text-left">
                 <h4 className="text-xs font-bold text-slate-800 dark:text-white">{activeRide?.driver?.name || 'Driver'}</h4>
                 <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">
-                  {activeRide?.driver?.driver_detail?.vehicle_model || selectedCab.name} (
+                  {activeRide?.driver?.driver_detail?.vehicle_model || activeRide?.vehicle_type || 'Vehicle'} (
                   {activeRide?.driver?.driver_detail?.vehicle_plate_number || 'MH12AB1234'})
                 </span>
               </div>

@@ -7,6 +7,50 @@ let pollingInterval = null;
 let currentActiveBookingId = null;
 let currentShownRequestId = null;  // tracks which pending request card is currently shown
 let driverTrackerProgress = 10;
+let currentDisplayProgress = null;
+let currentTargetProgress = null;
+let progressInterval = null;
+
+function animateProgressBar(targetProgress) {
+    if (currentTargetProgress === targetProgress) return;
+    
+    // If it's the very first time setting a target (like on page refresh), snap instantly
+    const isFirstLoad = currentTargetProgress === null;
+    currentTargetProgress = targetProgress;
+
+    if (progressInterval) clearInterval(progressInterval);
+    const progressPercentage = document.getElementById('active-progress-percentage');
+    const progressBar = document.getElementById('active-progress-bar');
+    if (!progressPercentage || !progressBar) return;
+
+    if (currentDisplayProgress === null) {
+        currentDisplayProgress = parseInt(progressPercentage.textContent) || 0;
+    }
+
+    if (isFirstLoad) {
+        currentDisplayProgress = targetProgress;
+        progressPercentage.textContent = targetProgress + "%";
+        progressBar.style.width = targetProgress + "%";
+        return;
+    }
+
+    if (currentDisplayProgress === targetProgress) {
+        progressPercentage.textContent = targetProgress + "%";
+        progressBar.style.width = targetProgress + "%";
+        return;
+    }
+
+    const step = currentDisplayProgress < targetProgress ? 1 : -1;
+    progressInterval = setInterval(() => {
+        if (currentDisplayProgress === targetProgress) {
+            clearInterval(progressInterval);
+            return;
+        }
+        currentDisplayProgress += step;
+        progressPercentage.textContent = currentDisplayProgress + "%";
+        progressBar.style.width = currentDisplayProgress + "%";
+    }, 500); 
+}
 
 // Renders a premium custom floating toast notification
 function showToast(message, type = 'error') {
@@ -301,8 +345,7 @@ async function checkActiveBookings() {
 
                 driverTrackerProgress = 40;
                 progressText.textContent = "Heading to pickup location...";
-                progressPercentage.textContent = "40%";
-                progressBar.style.width = "40%";
+                animateProgressBar(40);
 
                 buttonsGroup.innerHTML = `
                     <button onclick="startActiveTrip()" class="w-full py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer shadow-lg shadow-sky-500/10">
@@ -316,8 +359,7 @@ async function checkActiveBookings() {
 
                 driverTrackerProgress = 70;
                 progressText.textContent = "En route to destination...";
-                progressPercentage.textContent = "70%";
-                progressBar.style.width = "70%";
+                animateProgressBar(70);
 
                 buttonsGroup.innerHTML = `
                     <button onclick="completeActiveTrip()" class="col-span-2 py-3 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer shadow-lg shadow-emerald-500/10">
@@ -366,6 +408,16 @@ async function acceptRideRequest() {
                 await startActiveTrip();
             }
         }, 2000);
+
+        // Reset progress bar to 0% for the new trip
+        currentDisplayProgress = 0;
+        currentTargetProgress = 0;
+        const progressPercentage = document.getElementById('active-progress-percentage');
+        const progressBar = document.getElementById('active-progress-bar');
+        if (progressPercentage && progressBar) {
+            progressPercentage.textContent = "0%";
+            progressBar.style.width = "0%";
+        }
 
         // Refresh view immediately
         await checkActiveBookings();
@@ -485,7 +537,9 @@ function renderTripsHistory() {
             });
         let html = '';
         historyList.forEach(trip => {
-            const displayName = trip.pickup.includes(' to ') ? trip.pickup : `${trip.pickup} to ${trip.dropoff}`;
+            const safePickup = trip.pickup || 'Unknown Location';
+            const safeDropoff = trip.dropoff || 'Unknown Destination';
+            const displayName = safePickup.includes(' to ') ? safePickup : `${safePickup} to ${safeDropoff}`;
             const isCompleted = trip.status === 'Completed' || !trip.status;
             
             const icon = isCompleted ? '✅' : '❌';
@@ -494,17 +548,20 @@ function renderTripsHistory() {
                 ? `<span class="text-[7px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>`
                 : `<span class="text-[7px] px-1 py-0.2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase font-semibold">Cancelled</span>`;
 
+            const fare = Number(trip.fare) || 0;
+            const customerName = trip.customer || 'Unknown Customer';
+
             html += `
                 <div class="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 hover:border-slate-300 dark:hover:border-neutral-800 transition-colors duration-300">
                     <div class="flex items-center gap-3">
                         <span class="text-xl">${icon}</span>
                         <div>
                             <h4 class="text-xs font-bold text-slate-800 dark:text-white truncate max-w-[180px]">${displayName}</h4>
-                            <span class="text-[9px] text-slate-500 dark:text-slate-400">Today • Customer: ${trip.customer}</span>
+                            <span class="text-[9px] text-slate-500 dark:text-slate-400">Today • Customer: ${customerName}</span>
                         </div>
                     </div>
                     <div class="text-right">
-                        <strong class="text-xs font-bold ${textClass} block">₹${trip.fare.toFixed(2)}</strong>
+                        <strong class="text-xs font-bold ${textClass} block">₹${fare.toFixed(2)}</strong>
                         ${statusBadge}
                     </div>
                 </div>

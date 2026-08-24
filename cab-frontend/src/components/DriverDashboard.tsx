@@ -7,7 +7,25 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   const [isOnline, setIsOnline] = useState(false);
   const [activeRequest, setActiveRequest] = useState<any>(null);
   const [activeTrip, setActiveTrip] = useState<any>(null);
-  const [tripProgress, setTripProgress] = useState(40);
+  const [tripProgress, setTripProgress] = useState(0);
+  const [displayProgress, setDisplayProgress] = useState(0);
+
+  // Slowly animate displayProgress toward tripProgress (~1% per second)
+  useEffect(() => {
+    if (displayProgress === tripProgress) return;
+    const step = displayProgress < tripProgress ? 1 : -1;
+    const interval = setInterval(() => {
+      setDisplayProgress(prev => {
+        const next = prev + step;
+        if ((step > 0 && next >= tripProgress) || (step < 0 && next <= tripProgress)) {
+          clearInterval(interval);
+          return tripProgress;
+        }
+        return next;
+      });
+    }, 500);
+    return () => clearInterval(interval);
+  }, [tripProgress]);
 
   // Stats
   const [earnings, setEarnings] = useState(0);
@@ -96,9 +114,17 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       if (active) {
         setActiveTrip(active);
         setIsOnline(true);
-        if (active.status === 'accepted') setTripProgress(30);
-        if (active.status === 'arrived') setTripProgress(60);
-        if (active.status === 'in_progress') setTripProgress(90);
+        let targetProg = 0;
+        if (active.status === 'accepted') targetProg = 30;
+        if (active.status === 'arrived') targetProg = 60;
+        if (active.status === 'in_progress') targetProg = 90;
+
+        setTripProgress((prev) => {
+          if (prev === 0 && targetProg > 0) {
+            setDisplayProgress(targetProg); // Instant snap on page refresh
+          }
+          return targetProg;
+        });
       }
     } catch (err) {
       console.error(err);
@@ -156,9 +182,40 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       });
       setActiveTrip(res.ride);
       setActiveRequest(null);
+      setDisplayProgress(0); // Reset animation to 0% for new ride
       setTripProgress(30);
-      addToast('Ride accepted! Heading to pickup location.');
+      addToast('Ride accepted! Arriving at pickup location...');
       fetchHistory();
+
+      // Automatically arrive at pickup after a short delay
+      setTimeout(async () => {
+        try {
+          const arriveRes = await apiRequest(`/driver/rides/${res.ride.id}/status`, {
+            method: 'POST',
+            body: JSON.stringify({ status: 'arrived' }),
+          });
+          setActiveTrip(arriveRes.ride);
+          setTripProgress(60);
+          addToast('Arrived at customer pickup point.');
+
+          // Automatically start the ride after arriving
+          setTimeout(async () => {
+            try {
+              const startRes = await apiRequest(`/driver/rides/${res.ride.id}/status`, {
+                method: 'POST',
+                body: JSON.stringify({ status: 'in_progress' }),
+              });
+              setActiveTrip(startRes.ride);
+              setTripProgress(90);
+              addToast('Ride started. Heading to destination.');
+            } catch (startErr: any) {
+              addToast(startErr.message || 'Auto-start failed.', 'error');
+            }
+          }, 2000);
+        } catch (arriveErr: any) {
+          addToast(arriveErr.message || 'Auto-arrive failed.', 'error');
+        }
+      }, 2000);
     } catch (err: any) {
       addToast(err.message || 'Could not accept ride.', 'error');
       setActiveRequest(null);
@@ -530,12 +587,12 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                     <span className="text-slate-500 dark:text-slate-400">
                       Status: <strong className="text-sky-400">{activeTrip.status.toUpperCase()}</strong>
                     </span>
-                    <span className="font-bold text-slate-800 dark:text-white">{tripProgress}%</span>
+                    <span className="font-bold text-slate-800 dark:text-white">{displayProgress}%</span>
                   </div>
                   <div className="w-full bg-slate-200 dark:bg-neutral-900 h-2 rounded-full overflow-hidden">
                     <div
-                      className="bg-gradient-to-r from-sky-400 to-indigo-500 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${tripProgress}%` }}
+                      className="bg-gradient-to-r from-sky-400 to-indigo-500 h-full rounded-full transition-all duration-300 ease-linear"
+                      style={{ width: `${displayProgress}%` }}
                     ></div>
                   </div>
                 </div>
