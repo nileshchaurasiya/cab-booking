@@ -51,6 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Start Real-time Data Sync Loop
     syncDashboardData();
     setInterval(syncDashboardData, 2000);
+
+    // 3. Listen for cross-tab storage changes (e.g. driver completes a ride)
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'indiancabs_db') {
+            syncDashboardData();
+        }
+    });
 });
 
 // Logs out admin user

@@ -5,7 +5,7 @@
 let currentCabClass = 'Car';
 let currentRatePerKm = 30;
 let currentDistance = 0; // Default to 0
-let walletAmount = 2000.00;
+let walletAmount = 0.00;
 let currentFare = 0; // Default to 0
 let bookingProgressInterval = null;
 let currentTrackerProgress = 10;

@@ -37,8 +37,20 @@ const rideSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['requested', 'accepted', 'arrived', 'in_progress', 'completed', 'cancelled'],
+    enum: ['requested', 'accepted', 'arrived', 'waiting_for_customer', 'in_progress', 'completed', 'cancelled'],
     default: 'requested'
+  },
+  pickup_waiting_started_at: {
+    type: Date,
+    default: null
+  },
+  driver_accepted_at: {
+    type: Date,
+    default: null
+  },
+  estimated_pickup_at: {
+    type: Date,
+    default: null
   },
   vehicle_type: {
     type: String,

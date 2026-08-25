@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
-import { Users, DollarSign, CheckCircle, RefreshCw, UserMinus, UserCheck, Plus, LogOut } from 'lucide-react';
+import { Users, IndianRupee, CheckCircle, RefreshCw, UserMinus, UserCheck, Plus, LogOut } from 'lucide-react';
 
 export default function AdminDashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
   // Statistics states
@@ -53,10 +53,21 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
   };
 
   useEffect(() => {
+    // Initial fetch
     fetchStats();
     fetchDrivers();
     fetchActiveBookings();
     fetchHistory();
+
+    // Auto-refresh interval (every 2 seconds)
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchDrivers(false); // false = don't show loading spinner
+      fetchActiveBookings(false);
+      fetchHistory(false);
+    }, 2000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchStats = async () => {
@@ -73,8 +84,8 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
     }
   };
 
-  const fetchDrivers = async () => {
-    setLoadingDrivers(true);
+  const fetchDrivers = async (showLoader = true) => {
+    if (showLoader) setLoadingDrivers(true);
     try {
       const res = await apiRequest('/admin/users?role=driver');
       setDrivers(res.data || []);
@@ -85,8 +96,8 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
     }
   };
 
-  const fetchActiveBookings = async () => {
-    setLoadingBookings(true);
+  const fetchActiveBookings = async (showLoader = true) => {
+    if (showLoader) setLoadingBookings(true);
     try {
       const res = await apiRequest('/admin/rides');
       // Show rides that are in progress (requested, accepted, arrived, in_progress)
@@ -100,8 +111,8 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
     }
   };
 
-  const fetchHistory = async () => {
-    setLoadingHistory(true);
+  const fetchHistory = async (showLoader = true) => {
+    if (showLoader) setLoadingHistory(true);
     try {
       const res = await apiRequest('/admin/rides');
       setHistoryRides(res.data || []);
@@ -281,7 +292,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
             </strong>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-            <DollarSign className="w-6 h-6 text-purple-400" />
+            <IndianRupee className="w-6 h-6 text-purple-400" />
           </div>
         </div>
 

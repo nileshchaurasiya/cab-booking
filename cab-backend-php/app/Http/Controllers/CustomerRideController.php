@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Models\DriverDetail;
 use App\Models\Payment;
 use App\Models\Review;
+use App\Models\Wallet;
+use App\Models\WalletTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -106,10 +108,29 @@ class CustomerRideController extends Controller
         
         // Estimated duration: average speed 30km/h
         $estimatedDuration = ceil(($distanceKm / 30) * 60);
+        $paymentMethod = $validated['payment_method'] ?? 'cash';
 
-        return DB::transaction(function () use ($request, $validated, $vehicleType, $distanceKm, $estimatedFare, $estimatedDuration) {
+        return DB::transaction(function () use ($request, $validated, $vehicleType, $distanceKm, $estimatedFare, $estimatedDuration, $paymentMethod) {
+            $userId = $request->user()->id;
+
+            if ($paymentMethod === 'wallet') {
+                $wallet = Wallet::lockForUpdate()->firstOrCreate(
+                    ['user_id' => $userId],
+                    ['balance' => 0.00]
+                );
+
+                if ($wallet->balance < $estimatedFare) {
+                    return response()->json([
+                        'message' => 'Insufficient wallet balance (₹' . number_format($wallet->balance, 2) . '). Required: ₹' . number_format($estimatedFare, 2) . '. Please recharge your wallet.'
+                    ], 422);
+                }
+
+                $wallet->balance -= $estimatedFare;
+                $wallet->save();
+            }
+
             $ride = Ride::create([
-                'customer_id' => $request->user()->id,
+                'customer_id' => $userId,
                 'pickup_address' => $validated['pickup_address'],
                 'dropoff_address' => $validated['dropoff_address'],
                 'pickup_latitude' => $validated['pickup_latitude'],
@@ -126,12 +147,23 @@ class CustomerRideController extends Controller
 
             Payment::create([
                 'ride_id' => $ride->id,
-                'payment_method' => $validated['payment_method'] ?? 'cash',
-                'payment_status' => 'pending',
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentMethod === 'wallet' ? 'completed' : 'pending',
                 'amount' => $estimatedFare,
                 'admin_commission' => round($estimatedFare * (config('cab.commission_percentage', 10) / 100), 2),
                 'driver_earning' => round($estimatedFare * ((100 - config('cab.commission_percentage', 10)) / 100), 2),
             ]);
+
+            if ($paymentMethod === 'wallet') {
+                WalletTransaction::create([
+                    'wallet_id' => $wallet->id,
+                    'user_id' => $userId,
+                    'type' => 'payment',
+                    'amount' => $estimatedFare,
+                    'description' => "Fare for Ride #{$ride->id}",
+                    'reference_id' => (string) $ride->id,
+                ]);
+            }
 
             return response()->json([
                 'message' => 'Ride requested successfully. Searching for nearby drivers...',
@@ -170,35 +202,58 @@ class CustomerRideController extends Controller
      */
     public function cancel(Request $request, $id)
     {
-        $ride = Ride::where('customer_id', $request->user()->id)->findOrFail($id);
+        return DB::transaction(function () use ($request, $id) {
+            $ride = Ride::where('customer_id', $request->user()->id)->with('payment')->findOrFail($id);
 
-        if (!in_array($ride->status, [Ride::STATUS_REQUESTED, Ride::STATUS_ACCEPTED])) {
-            return response()->json([
-                'message' => 'Cannot cancel a ride that is already in progress, completed, or cancelled.'
-            ], 422);
-        }
-
-        $ride->status = Ride::STATUS_CANCELLED;
-        $ride->save();
-
-        if ($ride->payment) {
-            $ride->payment->payment_status = 'failed';
-            $ride->payment->save();
-        }
-
-        // If driver was assigned, set driver availability back to true
-        if ($ride->driver_id) {
-            $driverDetail = DriverDetail::where('user_id', $ride->driver_id)->first();
-            if ($driverDetail) {
-                $driverDetail->is_available = true;
-                $driverDetail->save();
+            if (!in_array($ride->status, [Ride::STATUS_REQUESTED, Ride::STATUS_ACCEPTED])) {
+                return response()->json([
+                    'message' => 'Cannot cancel a ride that is already in progress, completed, or cancelled.'
+                ], 422);
             }
-        }
 
-        return response()->json([
-            'message' => 'Ride cancelled successfully.',
-            'ride' => $ride
-        ]);
+            $ride->status = Ride::STATUS_CANCELLED;
+            $ride->save();
+
+            // Refund wallet if payment method was wallet and completed
+            if ($ride->payment && $ride->payment->payment_method === 'wallet' && $ride->payment->payment_status === 'completed') {
+                $wallet = Wallet::lockForUpdate()->firstOrCreate(
+                    ['user_id' => $request->user()->id],
+                    ['balance' => 0.00]
+                );
+
+                $wallet->balance += (float) $ride->fare;
+                $wallet->save();
+
+                WalletTransaction::create([
+                    'wallet_id' => $wallet->id,
+                    'user_id' => $request->user()->id,
+                    'type' => 'refund',
+                    'amount' => (float) $ride->fare,
+                    'description' => "Refund for Ride #{$ride->id}",
+                    'reference_id' => (string) $ride->id,
+                ]);
+
+                $ride->payment->payment_status = 'refunded';
+                $ride->payment->save();
+            } elseif ($ride->payment) {
+                $ride->payment->payment_status = 'failed';
+                $ride->payment->save();
+            }
+
+            // If driver was assigned, set driver availability back to true
+            if ($ride->driver_id) {
+                $driverDetail = DriverDetail::where('user_id', $ride->driver_id)->first();
+                if ($driverDetail) {
+                    $driverDetail->is_available = true;
+                    $driverDetail->save();
+                }
+            }
+
+            return response()->json([
+                'message' => 'Ride cancelled successfully.',
+                'ride' => $ride
+            ]);
+        });
     }
 
     /**

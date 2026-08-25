@@ -10,6 +10,7 @@ let driverTrackerProgress = 10;
 let currentDisplayProgress = null;
 let currentTargetProgress = null;
 let progressInterval = null;
+let requestCountdownInterval = null;
 
 function animateProgressBar(targetProgress) {
     if (currentTargetProgress === targetProgress) return;
@@ -39,7 +40,7 @@ function animateProgressBar(targetProgress) {
         currentDisplayProgress += step;
         progressPercentage.textContent = currentDisplayProgress + "%";
         progressBar.style.width = currentDisplayProgress + "%";
-    }, 500); 
+    }, 500);
 }
 
 // Renders a premium custom floating toast notification
@@ -302,11 +303,33 @@ async function checkActiveBookings() {
                         requestImgContainer.classList.add('hidden');
                     }
                 }
+
+                // Start 5-second countdown timer
+                if (requestCountdownInterval) clearInterval(requestCountdownInterval);
+                let timeLeft = 8;
+                const timeLeftElem = document.getElementById('request-time-left');
+                if (timeLeftElem) timeLeftElem.textContent = `⏱️ ${timeLeft}s left`;
+                requestCountdownInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeftElem) timeLeftElem.textContent = `⏱️ ${timeLeft}s left`;
+                    if (timeLeft <= 0) {
+                        clearInterval(requestCountdownInterval);
+                        requestCountdownInterval = null;
+                        currentShownRequestId = null;
+                        document.getElementById('new-request-card').style.display = 'none';
+                        document.getElementById('online-waiting-card').style.display = 'block';
+                        showToast("Ride request expired.");
+                    }
+                }, 1000);
             }
         }
 
         if (booking.status === 'accepted' || booking.status === 'started') {
             currentShownRequestId = null; // clear so next pending booking shows properly
+            if (requestCountdownInterval) {
+                clearInterval(requestCountdownInterval);
+                requestCountdownInterval = null;
+            }
             // Driver already accepted or started trip, show the active dashboard
             document.getElementById('offline-state-card').style.display = 'none';
             document.getElementById('online-waiting-card').style.display = 'none';
@@ -388,6 +411,11 @@ async function acceptRideRequest() {
             return;
         }
 
+        if (requestCountdownInterval) {
+            clearInterval(requestCountdownInterval);
+            requestCountdownInterval = null;
+        }
+
         await Backend.acceptBooking(booking.id, user.email);
         showToast("Booking request accepted! Head to pickup location.", "success");
 
@@ -420,6 +448,10 @@ async function acceptRideRequest() {
 
 // Action: Decline Request
 async function declineRideRequest() {
+    if (requestCountdownInterval) {
+        clearInterval(requestCountdownInterval);
+        requestCountdownInterval = null;
+    }
     const booking = await Backend.getActiveBooking();
     if (booking) {
         await Backend.cancelActiveBooking(booking.id, 'driver');
@@ -498,11 +530,10 @@ function setDriverHistoryFilter(filter) {
         const btn = document.getElementById(`drv-filter-${f}`);
         if (!btn) return;
         if (f === filter) {
-            btn.className = `text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
-                f === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' :
-                f === 'cancelled' ? 'bg-rose-500 border-rose-500 text-white' :
-                'bg-sky-500 border-sky-500 text-white'
-            }`;
+            btn.className = `text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${f === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' :
+                    f === 'cancelled' ? 'bg-rose-500 border-rose-500 text-white' :
+                        'bg-sky-500 border-sky-500 text-white'
+                }`;
         } else {
             btn.className = 'text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer bg-transparent border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-slate-400';
         }
@@ -531,10 +562,10 @@ function renderTripsHistory() {
             const safeDropoff = trip.dropoff || 'Unknown Destination';
             const displayName = safePickup.includes(' to ') ? safePickup : `${safePickup} to ${safeDropoff}`;
             const isCompleted = trip.status === 'Completed' || !trip.status;
-            
+
             const icon = isCompleted ? '✅' : '❌';
             const textClass = isCompleted ? 'text-emerald-400' : 'text-rose-400';
-            const statusBadge = isCompleted 
+            const statusBadge = isCompleted
                 ? `<span class="text-[7px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">Completed</span>`
                 : `<span class="text-[7px] px-1 py-0.2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase font-semibold">Cancelled</span>`;
 

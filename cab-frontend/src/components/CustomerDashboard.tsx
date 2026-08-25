@@ -14,13 +14,15 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
   // Recharge inputs
   const [rechargeAmount, setRechargeAmount] = useState('500');
-  const [walletBalance, setWalletBalance] = useState(() => {
-    return parseFloat(localStorage.getItem('customer_wallet_balance') || '0.00');
+  const [walletBalance, setWalletBalance] = useState<number>(() => {
+    const key = `customer_wallet_balance_${user?.id || 'guest'}`;
+    return parseFloat(localStorage.getItem(key) || '0.00');
   });
 
   // Wallet transactions
   const [walletTransactions, setWalletTransactions] = useState<any[]>(() => {
-    return JSON.parse(localStorage.getItem('customer_wallet_transactions') || '[]');
+    const key = `customer_wallet_transactions_${user?.id || 'guest'}`;
+    return JSON.parse(localStorage.getItem(key) || '[]');
   });
 
   // Booking Form State
@@ -55,6 +57,52 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
   // History list
   const [historyRides, setHistoryRides] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [waitingSeconds, setWaitingSeconds] = useState(0);
+  const [etaSeconds, setEtaSeconds] = useState(0);
+
+  const formatTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Live waiting timer tick
+  useEffect(() => {
+    if (!activeRide || activeRide.status !== 'waiting_for_customer' || !activeRide.pickup_waiting_started_at) {
+      setWaitingSeconds(0);
+      return;
+    }
+
+    const calculateElapsed = () => {
+      const start = new Date(activeRide.pickup_waiting_started_at).getTime();
+      const now = new Date().getTime();
+      const elapsed = Math.max(0, Math.floor((now - start) / 1000));
+      setWaitingSeconds(elapsed);
+    };
+
+    calculateElapsed(); // run once immediately
+    const interval = setInterval(calculateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [activeRide]);
+
+  // Live ETA countdown timer tick
+  useEffect(() => {
+    if (!activeRide || activeRide.status !== 'accepted' || !activeRide.estimated_pickup_at) {
+      setEtaSeconds(0);
+      return;
+    }
+
+    const calculateRemaining = () => {
+      const end = new Date(activeRide.estimated_pickup_at).getTime();
+      const now = new Date().getTime();
+      const remaining = Math.max(0, Math.floor((end - now) / 1000));
+      setEtaSeconds(remaining);
+    };
+
+    calculateRemaining(); // run once immediately
+    const interval = setInterval(calculateRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [activeRide]);
 
   // Feedback states
   const [feedbackStars, setFeedbackStars] = useState(5);
@@ -71,20 +119,48 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     }, 4000);
   };
 
-  // Sync wallet balance
-  useEffect(() => {
-    localStorage.setItem('customer_wallet_balance', walletBalance.toFixed(2));
-  }, [walletBalance]);
+  // Fetch isolated wallet from backend API
+  const fetchWallet = async () => {
+    if (!user?.id) return;
+    try {
+      const data = await apiRequest('/customer/wallet');
+      if (data && typeof data.balance === 'number') {
+        setWalletBalance(data.balance);
+        setWalletTransactions(data.transactions || []);
+        localStorage.setItem(`customer_wallet_balance_${user.id}`, data.balance.toFixed(2));
+        localStorage.setItem(`customer_wallet_transactions_${user.id}`, JSON.stringify(data.transactions || []));
+      }
+    } catch (err) {
+      console.error('Failed to load wallet from API', err);
+    }
+  };
 
-  // Sync transactions
+  // Switch/sync state whenever active user changes
   useEffect(() => {
-    localStorage.setItem('customer_wallet_transactions', JSON.stringify(walletTransactions));
-  }, [walletTransactions]);
+    if (user?.id) {
+      const cachedBal = parseFloat(localStorage.getItem(`customer_wallet_balance_${user.id}`) || '0.00');
+      const cachedTx = JSON.parse(localStorage.getItem(`customer_wallet_transactions_${user.id}`) || '[]');
+      setWalletBalance(cachedBal);
+      setWalletTransactions(cachedTx);
+      fetchWallet();
+      fetchHistory();
+      fetchActiveRide();
+    }
+  }, [user?.id]);
 
+  // Sync isolated wallet balance to localStorage
   useEffect(() => {
-    fetchHistory();
-    fetchActiveRide();
-  }, []);
+    if (user?.id) {
+      localStorage.setItem(`customer_wallet_balance_${user.id}`, walletBalance.toFixed(2));
+    }
+  }, [walletBalance, user?.id]);
+
+  // Sync isolated transactions to localStorage
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`customer_wallet_transactions_${user.id}`, JSON.stringify(walletTransactions));
+    }
+  }, [walletTransactions, user?.id]);
 
   // Poll for ride status updates every 5 seconds when a ride is active
   useEffect(() => {
@@ -147,6 +223,16 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
       return;
     }
 
+    const estimatedFare = calculateFare(selectedCab.name, previewDistance, pickup, dropoff);
+    if (walletBalance <= 0) {
+      addToast('Your wallet balance is ₹0.00. Please recharge your wallet to book a ride.', 'error');
+      return;
+    }
+    if (walletBalance < estimatedFare) {
+      addToast(`Insufficient wallet balance (₹${walletBalance.toFixed(2)}). Estimated fare is ₹${estimatedFare.toFixed(2)}. Please recharge your wallet.`, 'error');
+      return;
+    }
+
     setBookingRide(true);
     try {
       // Mock coordinates near Bangalore for distance calculations
@@ -171,19 +257,8 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
       setProgressPercentage(15);
       addToast('Ride requested successfully! Searching for drivers.');
 
-      // Deduct wallet balance
-      const fare = parseFloat(ride.fare);
-      setWalletBalance((prev) => Math.max(0, prev - fare));
-      setWalletTransactions((prev) => [
-        {
-          id: Date.now(),
-          type: 'Payment',
-          amount: fare,
-          description: `Fare for Ride #${ride.id}`,
-          date: new Date().toLocaleString(),
-        },
-        ...prev,
-      ]);
+      // Refresh isolated wallet and transaction log
+      fetchWallet();
 
       setPickup('');
       setDropoff('');
@@ -201,19 +276,8 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
       await apiRequest(`/customer/rides/${activeRide.id}/cancel`, { method: 'POST' });
       addToast('Ride request cancelled.');
 
-      // Refund wallet balance
-      const fare = parseFloat(activeRide.fare);
-      setWalletBalance((prev) => prev + fare);
-      setWalletTransactions((prev) => [
-        {
-          id: Date.now(),
-          type: 'Refund',
-          amount: fare,
-          description: `Refund for Ride #${activeRide.id}`,
-          date: new Date().toLocaleString(),
-        },
-        ...prev,
-      ]);
+      // Refresh isolated wallet and transaction log
+      fetchWallet();
 
       setActiveRide(null);
       fetchHistory();
@@ -222,7 +286,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     }
   };
 
-  const handleRechargeSubmit = (e: React.FormEvent) => {
+  const handleRechargeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(rechargeAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -241,20 +305,22 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
       return;
     }
 
-    setWalletBalance((prev) => prev + amount);
-    setWalletTransactions((prev) => [
-      {
-        id: Date.now(),
-        type: 'Deposit',
-        amount,
-        description: 'Wallet Recharge Deposit',
-        date: new Date().toLocaleString(),
-      },
-      ...prev,
-    ]);
-
-    addToast(`Successfully recharged ₹${amount.toFixed(2)} to your wallet!`);
-    setShowRechargeModal(false);
+    try {
+      const res = await apiRequest('/customer/wallet/recharge', {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      });
+      if (typeof res.balance === 'number') {
+        setWalletBalance(res.balance);
+        setWalletTransactions(res.transactions || []);
+      } else {
+        fetchWallet();
+      }
+      addToast(res.message || `Successfully recharged ₹${amount.toFixed(2)} to your wallet!`);
+      setShowRechargeModal(false);
+    } catch (err: any) {
+      addToast(err.message || 'Failed to recharge wallet.', 'error');
+    }
   };
 
   const handleFeedbackSubmit = async () => {
@@ -463,6 +529,23 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                     </div>
                   </div>
 
+                  {/* Wallet Warning if insufficient balance */}
+                  {walletBalance < calculateFare(selectedCab.name, previewDistance, pickup, dropoff) && (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs mt-3">
+                      <div className="flex items-center gap-1.5">
+                        <span>⚠️</span>
+                        <span>Insufficient balance (₹{walletBalance.toFixed(2)})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowRechargeModal(true)}
+                        className="font-bold underline text-sky-400 hover:text-sky-300 cursor-pointer text-xs"
+                      >
+                        + Recharge
+                      </button>
+                    </div>
+                  )}
+
                   {/* Book Button */}
                   <button
                     type="submit"
@@ -481,11 +564,25 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                 <h2 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">
                   {activeRide.status === 'requested'
                     ? 'Searching for Matches'
-                    : activeRide.status === 'completed'
-                      ? 'Ride Finished'
-                      : 'Your Driver is Arriving'}
+                    : activeRide.status === 'accepted'
+                      ? '🚕 Please Wait'
+                      : activeRide.status === 'arrived'
+                        ? '🚕 Your rider has arrived!'
+                        : activeRide.status === 'completed'
+                          ? 'Ride Finished'
+                          : activeRide.status === 'waiting_for_customer'
+                            ? '🚕 Driver is waiting for you'
+                            : 'Your Driver is Arriving'}
                 </h2>
-                <p className="text-xs text-neutral-400 mb-6">Keep track of your current driver match status below</p>
+                <p className="text-xs text-neutral-400 mb-6">
+                  {activeRide.status === 'accepted'
+                    ? 'Your rider is on the way.'
+                    : activeRide.status === 'arrived'
+                      ? 'Please go to the pickup location.'
+                      : activeRide.status === 'waiting_for_customer'
+                        ? 'Your driver is waiting for you'
+                        : 'Keep track of your current driver match status below'}
+                </p>
 
                 <div className="space-y-5">
                   {/* Driver Card */}
@@ -512,6 +609,22 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                       </div>
                     </div>
                   </div>
+
+                  {/* ETA countdown timer for Customer */}
+                  {activeRide.status === 'accepted' && activeRide.estimated_pickup_at && (
+                    <div className="bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-2xl p-4 text-center text-xs space-y-1">
+                      <span className="text-[10px] text-sky-400/80 block uppercase font-bold tracking-wider font-bold">Estimated arrival time</span>
+                      <div className="text-2xl font-mono font-bold tracking-widest">{formatTime(etaSeconds)}</div>
+                    </div>
+                  )}
+
+                  {/* Waiting Timer display for Customer */}
+                  {activeRide.status === 'waiting_for_customer' && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl p-4 text-center text-xs space-y-1">
+                      <span className="text-[10px] text-amber-400/80 block uppercase font-bold tracking-wider font-bold">Waiting time:</span>
+                      <div className="text-2xl font-mono font-bold tracking-widest">{formatTime(waitingSeconds)}</div>
+                    </div>
+                  )}
 
                   {/* Progress status */}
                   <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3">
@@ -549,6 +662,10 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                       >
                         ⭐ Rate Trip
                       </button>
+                    ) : activeRide.status === 'waiting_for_customer' ? (
+                      <div className="text-xs text-amber-500 text-center py-2 col-span-2 font-bold animate-pulse">
+                        🚕 Driver has arrived. Please board the vehicle.
+                      </div>
                     ) : (
                       <div className="text-xs text-neutral-500 text-center py-2 col-span-2">
                         Trip in progress. Safe travels!
@@ -668,17 +785,25 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
                   {walletTransactions.length > 0 ? (
                     <div className="space-y-3">
-                      {walletTransactions.map((tx) => (
-                        <div key={tx.id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
-                          <div>
-                            <h4 className="text-xs font-bold text-slate-800 dark:text-white">{tx.description}</h4>
-                            <span className="text-[9px] text-slate-500">{tx.date}</span>
+                      {walletTransactions.map((tx) => {
+                        const isCredit = (tx.type || '').toLowerCase() === 'deposit' || (tx.type || '').toLowerCase() === 'refund';
+                        const displayDate = tx.created_at
+                          ? new Date(tx.created_at).toLocaleString()
+                          : tx.date || new Date().toLocaleString();
+                        const amountVal = parseFloat(tx.amount || 0);
+
+                        return (
+                          <div key={tx.id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-800 dark:text-white">{tx.description}</h4>
+                              <span className="text-[9px] text-slate-500">{displayDate}</span>
+                            </div>
+                            <strong className={`text-xs font-bold ${isCredit ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {isCredit ? '+' : '-'}₹{amountVal.toFixed(2)}
+                            </strong>
                           </div>
-                          <strong className={`text-xs font-bold ${tx.type === 'Deposit' || tx.type === 'Refund' ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {tx.type === 'Deposit' || tx.type === 'Refund' ? '+' : '-'}₹{tx.amount.toFixed(2)}
-                          </strong>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-12 text-xs text-slate-500">No wallet records found.</div>

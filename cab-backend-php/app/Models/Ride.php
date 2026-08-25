@@ -16,6 +16,9 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
     'dropoff_latitude',
     'dropoff_longitude',
     'status',
+    'pickup_waiting_started_at',
+    'driver_accepted_at',
+    'estimated_pickup_at',
     'vehicle_type',
     'fare',
     'distance',
@@ -27,6 +30,7 @@ class Ride extends Model
     public const STATUS_REQUESTED = 'requested';
     public const STATUS_ACCEPTED = 'accepted';
     public const STATUS_ARRIVED = 'arrived';
+    public const STATUS_WAITING_FOR_CUSTOMER = 'waiting_for_customer';
     public const STATUS_IN_PROGRESS = 'in_progress';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_CANCELLED = 'cancelled';
@@ -41,6 +45,9 @@ class Ride extends Model
         'distance' => 'float',
         'duration' => 'integer',
         'scheduled_at' => 'datetime',
+        'pickup_waiting_started_at' => 'datetime',
+        'driver_accepted_at' => 'datetime',
+        'estimated_pickup_at' => 'datetime',
     ];
 
     public function customer()

@@ -35,14 +35,13 @@ const register = async (req, res, next) => {
       errors.phone = ['The phone has already been taken.'];
     }
 
-    // Driver specific validation
-    if (role === 'driver') {
-      if (!license_number) errors.license_number = ['The license number field is required.'];
+    // Driver specific validation (only if license_number is provided)
+    if (role === 'driver' && license_number) {
       if (!vehicle_model) errors.vehicle_model = ['The vehicle model field is required.'];
       if (!vehicle_plate_number) errors.vehicle_plate_number = ['The vehicle plate number field is required.'];
       if (!vehicle_color) errors.vehicle_color = ['The vehicle color field is required.'];
-      if (!vehicle_type || !['sedan', 'suv', 'hatchback', 'bike'].includes(vehicle_type)) {
-        errors.vehicle_type = ['The vehicle type must be sedan, suv, hatchback, or bike.'];
+      if (!vehicle_type || !['sedan', 'suv', 'hatchback', 'bike', 'rickshaw'].includes(vehicle_type)) {
+        errors.vehicle_type = ['The vehicle type must be sedan, suv, hatchback, bike, or rickshaw.'];
       }
 
       if (Object.keys(errors).length > 0) {
@@ -64,7 +63,7 @@ const register = async (req, res, next) => {
       return res.status(422).json({ message: 'The given data was invalid.', errors });
     }
 
-    // Create user in a manual transaction or simulation
+    // Create user
     const user = new User({
       name,
       email,
@@ -76,7 +75,7 @@ const register = async (req, res, next) => {
 
     await user.save();
 
-    if (role === 'driver') {
+    if (role === 'driver' && license_number) {
       const driverDetail = new DriverDetail({
         user_id: user._id,
         license_number,

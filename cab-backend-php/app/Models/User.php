@@ -40,6 +40,16 @@ class User extends Authenticatable
         return $this->hasMany(Ride::class, 'driver_id');
     }
 
+    public function wallet()
+    {
+        return $this->hasOne(Wallet::class);
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(WalletTransaction::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

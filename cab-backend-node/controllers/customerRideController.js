@@ -3,6 +3,8 @@ const User = require('../models/User');
 const DriverDetail = require('../models/DriverDetail');
 const Payment = require('../models/Payment');
 const Review = require('../models/Review');
+const Wallet = require('../models/Wallet');
+const WalletTransaction = require('../models/WalletTransaction');
 
 const deg2rad = (deg) => deg * (Math.PI / 180);
 
@@ -158,6 +160,25 @@ const store = async (req, res, next) => {
     const estimatedFare = Math.round(distanceKm * rate * 100) / 100;
     const estimatedDuration = Math.ceil((distanceKm / 30) * 60);
 
+    const paymentMethod = payment_method || 'cash';
+    let wallet = null;
+
+    if (paymentMethod === 'wallet') {
+      wallet = await Wallet.findOne({ user_id: req.user._id });
+      if (!wallet) {
+        wallet = await Wallet.create({ user_id: req.user._id, balance: 0 });
+      }
+
+      if (wallet.balance < estimatedFare) {
+        return res.status(422).json({
+          message: `Insufficient wallet balance (₹${wallet.balance.toFixed(2)}). Required: ₹${estimatedFare.toFixed(2)}. Please recharge your wallet.`
+        });
+      }
+
+      wallet.balance = parseFloat((wallet.balance - estimatedFare).toFixed(2));
+      await wallet.save();
+    }
+
     const ride = new Ride({
       customer_id: req.user._id,
       pickup_address,
@@ -182,14 +203,25 @@ const store = async (req, res, next) => {
 
     const payment = new Payment({
       ride_id: ride._id,
-      payment_method: payment_method || 'cash',
-      payment_status: 'pending',
+      payment_method: paymentMethod,
+      payment_status: paymentMethod === 'wallet' ? 'completed' : 'pending',
       amount: estimatedFare,
       admin_commission: adminCommission,
       driver_earning: driverEarning
     });
 
     await payment.save();
+
+    if (paymentMethod === 'wallet' && wallet) {
+      await WalletTransaction.create({
+        wallet_id: wallet._id,
+        user_id: req.user._id,
+        type: 'payment',
+        amount: estimatedFare,
+        description: `Fare for Ride #${ride._id}`,
+        reference_id: ride._id.toString()
+      });
+    }
 
     // Populate and return
     const populatedRide = await Ride.findById(ride._id).populate('payment');
@@ -263,7 +295,26 @@ const cancel = async (req, res, next) => {
     ride.status = 'cancelled';
     await ride.save();
 
-    if (ride.payment) {
+    // Refund wallet if payment method was wallet and completed
+    if (ride.payment && ride.payment.payment_method === 'wallet' && ride.payment.payment_status === 'completed') {
+      let wallet = await Wallet.findOne({ user_id: req.user._id });
+      if (wallet) {
+        wallet.balance = parseFloat((wallet.balance + ride.fare).toFixed(2));
+        await wallet.save();
+      }
+
+      await WalletTransaction.create({
+        wallet_id: wallet ? wallet._id : null,
+        user_id: req.user._id,
+        type: 'refund',
+        amount: ride.fare,
+        description: `Refund for Ride #${ride._id}`,
+        reference_id: ride._id.toString()
+      });
+
+      ride.payment.payment_status = 'refunded';
+      await ride.payment.save();
+    } else if (ride.payment) {
       ride.payment.payment_status = 'failed';
       await ride.payment.save();
     }

@@ -26,7 +26,7 @@ class AuthController extends Controller
             $rules['vehicle_model'] = 'required|string|max:255';
             $rules['vehicle_plate_number'] = 'required|string|max:50|unique:driver_details,vehicle_plate_number';
             $rules['vehicle_color'] = 'required|string|max:50';
-            $rules['vehicle_type'] = 'required|string|in:sedan,suv,hatchback,bike';
+            $rules['vehicle_type'] = 'required|string|in:sedan,suv,hatchback,bike,rickshaw';
         }
 
         $validatedData = $request->validate($rules);

@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerRideController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\WalletController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,6 +36,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/customer/rides/{id}', [CustomerRideController::class, 'show']);
         Route::post('/customer/rides/{id}/cancel', [CustomerRideController::class, 'cancel']);
         Route::post('/customer/rides/{id}/rate', [CustomerRideController::class, 'rate']);
+        Route::get('/customer/wallet', [WalletController::class, 'getWallet']);
+        Route::post('/customer/wallet/recharge', [WalletController::class, 'recharge']);
     });
 
     // Driver-only routes

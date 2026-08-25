@@ -7,6 +7,7 @@ const authController = require('./controllers/authController');
 const customerRideController = require('./controllers/customerRideController');
 const driverController = require('./controllers/driverController');
 const adminController = require('./controllers/adminController');
+const walletController = require('./controllers/walletController');
 
 const { authenticate, restrictTo } = require('./middleware/auth');
 
@@ -57,6 +58,8 @@ app.get('/api/customer/rides', restrictTo('customer'), customerRideController.in
 app.get('/api/customer/rides/:id', restrictTo('customer'), customerRideController.show);
 app.post('/api/customer/rides/:id/cancel', restrictTo('customer'), customerRideController.cancel);
 app.post('/api/customer/rides/:id/rate', restrictTo('customer'), customerRideController.rate);
+app.get('/api/customer/wallet', restrictTo('customer'), walletController.getWallet);
+app.post('/api/customer/wallet/recharge', restrictTo('customer'), walletController.recharge);
 
 // Driver-only Routes
 app.post('/api/driver/location', restrictTo('driver'), driverController.updateLocation);

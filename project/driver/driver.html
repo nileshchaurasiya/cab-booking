@@ -96,9 +96,13 @@
                     </div>
                     <button onclick="openProfileModal()" title="Settings & Profile"
                         class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-200 dark:hover:bg-neutral-800 hover:scale-105 active:scale-95 text-slate-650 dark:text-neutral-400 focus:outline-none">
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-500 hover:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-500 hover:rotate-90"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+                            </path>
                         </svg>
                     </button>
                 </div>
@@ -166,8 +170,8 @@
                         <span class="text-xs font-bold text-orange-400 uppercase tracking-wider block">🚨 NEW RIDE
                             REQUEST FOUND!</span>
                         <span id="request-time-left"
-                            class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-600/10 border border-sky-600/20 text-orange-400">Expiring
-                            soon</span>
+                            class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-600/10 border border-sky-600/20 text-orange-400 animate-pulse">⏱️
+                            8s left</span>
                     </div>
 
                     <!-- Customer Profile & Cab Class -->
@@ -593,13 +597,16 @@
                     ⚙️
                 </div>
                 <h3 class="text-xl font-extrabold text-slate-800 dark:text-white">Settings & Profile</h3>
-                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Manage preferences and view partner details.</p>
+                <p class="text-xs text-slate-500 dark:text-neutral-400 mt-1">Manage preferences and view partner
+                    details.</p>
             </div>
 
             <!-- Preferences / Settings Section -->
             <div class="mb-5 space-y-3">
-                <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Preferences</h4>
-                <div class="flex items-center justify-between bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
+                <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Preferences
+                </h4>
+                <div
+                    class="flex items-center justify-between bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
                     <span class="text-slate-650 dark:text-slate-300 text-xs font-semibold">Theme Mode</span>
                     <button id="theme-toggle-btn" onclick="toggleTheme()" class="shrink-0">
                         <!-- Loaded dynamically by mock-backend -->
@@ -609,7 +616,8 @@
 
             <!-- Details Roster -->
             <div class="space-y-3">
-                <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Partner Details</h4>
+                <h4 class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Partner
+                    Details</h4>
                 <div
                     class="bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3 transition-colors duration-300">
                     <!-- Vehicle Image display -->

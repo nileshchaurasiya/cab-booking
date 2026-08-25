@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import CustomerDashboard from './CustomerDashboard';
 import DriverDashboard from './DriverDashboard';
-import { LogOut, User as UserIcon, Shield, Car, Phone, Mail } from 'lucide-react';
+import { User as UserIcon, Shield, Car, Phone, Mail } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();

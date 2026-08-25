@@ -7,7 +7,7 @@ console.log("[Diagnostic] mock-backend.js loaded successfully!");
 // --- MODEL CLASSES ---
 
 class Customer {
-    constructor({ name, email, address = 'Surat, Gujarat', wallet = 2000.00, justSignedUp = false, tripsHistory = [], walletHistory = [] }) {
+    constructor({ name, email, address = 'Surat, Gujarat', wallet = 0.00, justSignedUp = false, tripsHistory = [], walletHistory = [] }) {
         this.name = name;
         this.email = email;
         this.role = 'customer';
@@ -136,7 +136,7 @@ class MockBackendService {
         const oldTripsHistory = localStorage.getItem('indiancabs_driver_trips_history');
         const oldActiveBooking = localStorage.getItem('indiancabs_active_booking');
 
-        let seedWallet = oldWallet ? parseFloat(oldWallet) : 2000.00;
+        let seedWallet = oldWallet ? parseFloat(oldWallet) : 0.00;
         let seedAdminEarnings = oldAdminEarnings ? parseFloat(oldAdminEarnings) : 0;
         let seedDriverEarnings = oldDriverEarnings ? parseFloat(oldDriverEarnings) : 0;
         let seedDriverTripsCount = oldDriverTripsCount ? parseInt(oldDriverTripsCount) : 0;
@@ -181,16 +181,16 @@ class MockBackendService {
             wallet: seedWallet,
             justSignedUp: false,
             tripsHistory: [],
-            walletHistory: [
+            walletHistory: seedWallet > 0 ? [
                 {
                     id: 'tx_seed_1',
                     type: 'recharge',
                     amount: seedWallet,
                     date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
                     timestamp: Date.now(),
-                    description: 'Initial Wallet Balance Seeding'
+                    description: 'Initial Wallet Balance'
                 }
-            ]
+            ] : []
         });
 
         const defaultDriver = new Driver({
@@ -336,7 +336,7 @@ class MockBackendService {
                 name,
                 email: emailLower,
                 address: address || 'Surat, Gujarat',
-                wallet: 2000.00,
+                wallet: 0.00,
                 justSignedUp: true
             });
             db.customers.push(customer);

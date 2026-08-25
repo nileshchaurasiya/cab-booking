@@ -35,6 +35,23 @@ class DriverController extends Controller
     }
 
     /**
+     * Map driver vehicle type to ride vehicle type.
+     */
+    private function getRideVehicleTypeForDriver($driverVehicleType)
+    {
+        if (in_array($driverVehicleType, ['sedan', 'suv', 'hatchback'])) {
+            return 'Car';
+        }
+        if ($driverVehicleType === 'bike') {
+            return 'Bike';
+        }
+        if ($driverVehicleType === 'rickshaw') {
+            return 'Rickshaw';
+        }
+        return null;
+    }
+
+    /**
      * Get active ride requests nearby (e.g. within 15 km of the driver's current location).
      */
     public function rideRequests(Request $request)
@@ -56,6 +73,9 @@ class DriverController extends Controller
             ], 422);
         }
 
+        // Map driver vehicle type to allowed ride vehicle type
+        $rideVehicleType = $this->getRideVehicleTypeForDriver($driverDetail->vehicle_type);
+
         // Retrieve requested rides within a 15km radius of the driver
         $radius = 15;
         $latDelta = $radius / 111.0;
@@ -67,6 +87,7 @@ class DriverController extends Controller
         $maxLon = $lon + $lonDelta;
 
         $rides = Ride::where('status', Ride::STATUS_REQUESTED)
+            ->where('vehicle_type', $rideVehicleType)
             ->whereBetween('pickup_latitude', [$minLat, $maxLat])
             ->whereBetween('pickup_longitude', [$minLon, $maxLon])
             ->with('customer:id,name,phone')
@@ -119,10 +140,20 @@ class DriverController extends Controller
             ], 422);
         }
 
+        // Verify driver vehicle compatibility with the ride vehicle type
+        $expectedRideVehicleType = $this->getRideVehicleTypeForDriver($driverDetail->vehicle_type);
+        if ($ride->vehicle_type !== $expectedRideVehicleType) {
+            return response()->json([
+                'message' => 'This ride is for a different vehicle type.'
+            ], 422);
+        }
+
         return DB::transaction(function () use ($ride, $request, $driverDetail) {
             $ride->update([
                 'driver_id' => $request->user()->id,
-                'status' => Ride::STATUS_ACCEPTED
+                'status' => Ride::STATUS_ACCEPTED,
+                'driver_accepted_at' => now(),
+                'estimated_pickup_at' => now()->addMinutes(rand(1, 3))
             ]);
 
             // Set driver status to occupied
@@ -141,7 +172,7 @@ class DriverController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|string|in:arrived,in_progress,completed'
+            'status' => 'required|string|in:arrived,waiting_for_customer,in_progress,completed'
         ]);
 
         $ride = Ride::where('driver_id', $request->user()->id)->findOrFail($id);
@@ -155,8 +186,14 @@ class DriverController extends Controller
         $newStatus = $request->status;
 
         // Ensure status progression is logical
-        if ($newStatus === 'in_progress' && $ride->status !== Ride::STATUS_ARRIVED && $ride->status !== Ride::STATUS_ACCEPTED) {
-            return response()->json(['message' => 'Invalid status progression.'], 422);
+        if ($newStatus === 'arrived' && $ride->status !== Ride::STATUS_ACCEPTED) {
+            return response()->json(['message' => 'Invalid status progression. Must be accepted to arrive.'], 422);
+        }
+        if ($newStatus === 'waiting_for_customer' && $ride->status !== Ride::STATUS_ARRIVED) {
+            return response()->json(['message' => 'Invalid status progression. Must be arrived to pick up customer.'], 422);
+        }
+        if ($newStatus === 'in_progress' && $ride->status !== Ride::STATUS_WAITING_FOR_CUSTOMER) {
+            return response()->json(['message' => 'Invalid status progression. Must be waiting for customer to start.'], 422);
         }
         if ($newStatus === 'completed' && $ride->status !== Ride::STATUS_IN_PROGRESS) {
             return response()->json(['message' => 'Cannot complete a ride that has not started.'], 422);
@@ -164,6 +201,11 @@ class DriverController extends Controller
 
         return DB::transaction(function () use ($ride, $newStatus, $request) {
             $ride->status = $newStatus;
+            
+            if ($newStatus === 'waiting_for_customer') {
+                $ride->pickup_waiting_started_at = now();
+            }
+            
             $ride->save();
 
             if ($newStatus === Ride::STATUS_COMPLETED) {
@@ -211,7 +253,7 @@ class DriverController extends Controller
             'vehicle_model' => 'required|string|max:255',
             'vehicle_plate_number' => 'required|string|max:50|unique:driver_details,vehicle_plate_number',
             'vehicle_color' => 'required|string|max:50',
-            'vehicle_type' => 'required|string|in:sedan,suv,hatchback,bike',
+            'vehicle_type' => 'required|string|in:sedan,suv,hatchback,bike,rickshaw',
         ]);
 
         $detail = DriverDetail::create([
@@ -242,7 +284,7 @@ class DriverController extends Controller
             'vehicle_model' => 'required|string|max:255',
             'vehicle_plate_number' => 'required|string|max:50|unique:driver_details,vehicle_plate_number,' . $detail->id,
             'vehicle_color' => 'required|string|max:50',
-            'vehicle_type' => 'required|string|in:sedan,suv,hatchback,bike',
+            'vehicle_type' => 'required|string|in:sedan,suv,hatchback,bike,rickshaw',
         ]);
 
         $detail->update($validated);

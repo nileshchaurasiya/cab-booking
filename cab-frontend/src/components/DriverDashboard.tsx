@@ -9,6 +9,25 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [tripProgress, setTripProgress] = useState(0);
   const [displayProgress, setDisplayProgress] = useState(0);
+  const [requestTimer, setRequestTimer] = useState(5);
+
+  // 5-second countdown timer for incoming request
+  useEffect(() => {
+    if (!activeRequest) return;
+    setRequestTimer(8);
+    const timer = setInterval(() => {
+      setRequestTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setActiveRequest(null);
+          addToast('Ride request expired.', 'error');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [activeRequest?.id]);
 
   // Slowly animate displayProgress toward tripProgress (~1% per second)
   useEffect(() => {
@@ -31,6 +50,32 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   const [earnings, setEarnings] = useState(0);
   const [tripsCount, setTripsCount] = useState(0);
   const [driverRating, setDriverRating] = useState(5.00);
+  const [waitingSeconds, setWaitingSeconds] = useState(0);
+
+  const formatTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Live waiting timer tick
+  useEffect(() => {
+    if (!activeTrip || activeTrip.status !== 'waiting_for_customer' || !activeTrip.pickup_waiting_started_at) {
+      setWaitingSeconds(0);
+      return;
+    }
+
+    const calculateElapsed = () => {
+      const start = new Date(activeTrip.pickup_waiting_started_at).getTime();
+      const now = new Date().getTime();
+      const elapsed = Math.max(0, Math.floor((now - start) / 1000));
+      setWaitingSeconds(elapsed);
+    };
+
+    calculateElapsed(); // run once immediately
+    const interval = setInterval(calculateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [activeTrip]);
 
   // History Filter
   const [historyFilter, setHistoryFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
@@ -178,43 +223,13 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       setTripProgress(30);
       addToast('Ride accepted! Arriving at pickup location...');
       fetchHistory();
-
-      // Automatically arrive at pickup after a short delay
-      setTimeout(async () => {
-        try {
-          const arriveRes = await apiRequest(`/driver/rides/${res.ride.id}/status`, {
-            method: 'POST',
-            body: JSON.stringify({ status: 'arrived' }),
-          });
-          setActiveTrip(arriveRes.ride);
-          setTripProgress(60);
-          addToast('Arrived at customer pickup point.');
-
-          // Automatically start the ride after arriving
-          setTimeout(async () => {
-            try {
-              const startRes = await apiRequest(`/driver/rides/${res.ride.id}/status`, {
-                method: 'POST',
-                body: JSON.stringify({ status: 'in_progress' }),
-              });
-              setActiveTrip(startRes.ride);
-              setTripProgress(90);
-              addToast('Ride started. Heading to destination.');
-            } catch (startErr: any) {
-              addToast(startErr.message || 'Auto-start failed.', 'error');
-            }
-          }, 2000);
-        } catch (arriveErr: any) {
-          addToast(arriveErr.message || 'Auto-arrive failed.', 'error');
-        }
-      }, 2000);
     } catch (err: any) {
       addToast(err.message || 'Could not accept ride.', 'error');
       setActiveRequest(null);
     }
   };
 
-  const handleUpdateStatus = async (status: 'arrived' | 'in_progress' | 'completed') => {
+  const handleUpdateStatus = async (status: 'arrived' | 'waiting_for_customer' | 'in_progress' | 'completed') => {
     if (!activeTrip) return;
     try {
       const res = await apiRequest(`/driver/rides/${activeTrip.id}/status`, {
@@ -226,8 +241,11 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       setActiveTrip(updatedRide);
 
       if (status === 'arrived') {
-        setTripProgress(60);
+        setTripProgress(50);
         addToast('Arrived at customer pickup point.');
+      } else if (status === 'waiting_for_customer') {
+        setTripProgress(70);
+        addToast('Waiting for customer...');
       } else if (status === 'in_progress') {
         setTripProgress(90);
         addToast('Ride started. Heading to destination.');
@@ -272,10 +290,10 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       });
 
       addToast(method === 'POST' ? 'Vehicle registered successfully.' : 'Vehicle details updated successfully.');
-      
+
       const meRes = await apiRequest('/me');
       localStorage.setItem('driver_auth_user', JSON.stringify(meRes.user));
-      
+
       if (meRes.user.driver_detail) {
         setVehicle({
           license_number: meRes.user.driver_detail.license_number || '',
@@ -301,7 +319,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
     try {
       await apiRequest('/driver/vehicle', { method: 'DELETE' });
       addToast('Vehicle removed successfully.');
-      
+
       setVehicle({
         license_number: '',
         vehicle_model: '',
@@ -334,8 +352,8 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
           <div
             key={toast.id}
             className={`pointer-events-auto p-4 rounded-xl shadow-lg border transition-all duration-300 text-xs font-semibold flex items-center gap-2 ${toast.type === 'error'
-                ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+              ? 'bg-red-500/10 border-red-500/20 text-red-400'
+              : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
               }`}
           >
             <span>{toast.type === 'error' ? '⚠️' : '✅'}</span>
@@ -454,7 +472,9 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
 
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-bold text-orange-400 uppercase tracking-wider block">🚨 NEW RIDE REQUEST FOUND!</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-600/10 border border-sky-600/20 text-orange-400">Expiring soon</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-600/10 border border-sky-600/20 text-orange-400 animate-pulse">
+                    ⏱️ {requestTimer}s left
+                  </span>
                 </div>
 
                 {/* Customer card details */}
@@ -535,7 +555,9 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                     ? 'On the way to Pickup'
                     : activeTrip.status === 'arrived'
                       ? 'Arrived at Pickup Location'
-                      : 'Trip in Progress'}
+                      : activeTrip.status === 'waiting_for_customer'
+                        ? 'Waiting for Customer'
+                        : 'Trip in Progress'}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-neutral-400 mb-6">Follow instructions below to coordinate the ride</p>
 
@@ -573,6 +595,14 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                   </div>
                 </div>
 
+                {/* Waiting time display */}
+                {activeTrip.status === 'waiting_for_customer' && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl p-4 mb-5 text-center text-xs space-y-1">
+                    <span className="text-[10px] text-amber-400/80 block uppercase font-bold tracking-wider">Waiting for Customer</span>
+                    <div className="text-2xl font-mono font-bold tracking-widest">{formatTime(waitingSeconds)}</div>
+                  </div>
+                )}
+
                 {/* Progress bar status */}
                 <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 mb-6 space-y-3">
                   <div className="flex justify-between items-center text-xs">
@@ -608,6 +638,15 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                   )}
 
                   {activeTrip.status === 'arrived' && (
+                    <button
+                      onClick={() => handleUpdateStatus('waiting_for_customer')}
+                      className="py-3 px-4 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer"
+                    >
+                      🙋‍♂️ Pick Up Customer
+                    </button>
+                  )}
+
+                  {activeTrip.status === 'waiting_for_customer' && (
                     <button
                       onClick={() => handleUpdateStatus('in_progress')}
                       className="py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer"

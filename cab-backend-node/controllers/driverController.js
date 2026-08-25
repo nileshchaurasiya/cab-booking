@@ -13,6 +13,19 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
   return Math.round(miles * 1.609344 * 100) / 100; // to km, rounded to 2 decimals
 };
 
+const getRideVehicleTypeForDriver = (driverVehicleType) => {
+  if (['sedan', 'suv', 'hatchback'].includes(driverVehicleType)) {
+    return 'Car';
+  }
+  if (driverVehicleType === 'bike') {
+    return 'Bike';
+  }
+  if (driverVehicleType === 'rickshaw') {
+    return 'Rickshaw';
+  }
+  return null;
+};
+
 const paginate = async (query, model, req, populateOpts = []) => {
   const page = parseInt(req.query.page) || 1;
   const limit = 15;
@@ -95,8 +108,14 @@ const rideRequests = async (req, res, next) => {
       });
     }
 
-    // Retrieve requested rides
-    const rides = await Ride.find({ status: 'requested' }).populate('customer', 'id name phone');
+    // Map driver vehicle type to allowed customer ride vehicle type
+    const rideVehicleType = getRideVehicleTypeForDriver(driverDetail.vehicle_type);
+
+    // Retrieve requested rides matching driver vehicle type
+    const rides = await Ride.find({ 
+      status: 'requested',
+      vehicle_type: rideVehicleType 
+    }).populate('customer', 'id name phone');
     const radius = 15; // 15km
 
     const filteredRequests = rides
@@ -142,8 +161,18 @@ const acceptRide = async (req, res, next) => {
       });
     }
 
+    // Verify driver vehicle compatibility with the ride vehicle type
+    const expectedRideVehicleType = getRideVehicleTypeForDriver(driverDetail.vehicle_type);
+    if (ride.vehicle_type !== expectedRideVehicleType) {
+      return res.status(422).json({
+        message: 'This ride is for a different vehicle type.'
+      });
+    }
+
     ride.driver_id = req.user._id;
     ride.status = 'accepted';
+    ride.driver_accepted_at = new Date();
+    ride.estimated_pickup_at = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes ETA
     await ride.save();
 
     driverDetail.is_available = false;
@@ -164,11 +193,11 @@ const acceptRide = async (req, res, next) => {
 const updateStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    if (!status || !['arrived', 'in_progress', 'completed'].includes(status)) {
+    if (!status || !['arrived', 'waiting_for_customer', 'in_progress', 'completed'].includes(status)) {
       return res.status(422).json({
         message: 'The given data was invalid.',
         errors: {
-          status: ['The status is invalid. Must be arrived, in_progress, or completed.']
+          status: ['The status is invalid. Must be arrived, waiting_for_customer, in_progress, or completed.']
         }
       });
     }
@@ -189,14 +218,23 @@ const updateStatus = async (req, res, next) => {
     }
 
     // Ensure status progression is logical
-    if (status === 'in_progress' && ride.status !== 'arrived' && ride.status !== 'accepted') {
-      return res.status(422).json({ message: 'Invalid status progression.' });
+    if (status === 'arrived' && ride.status !== 'accepted') {
+      return res.status(422).json({ message: 'Invalid status progression. Must be accepted to arrive.' });
+    }
+    if (status === 'waiting_for_customer' && ride.status !== 'arrived') {
+      return res.status(422).json({ message: 'Invalid status progression. Must be arrived to pick up customer.' });
+    }
+    if (status === 'in_progress' && ride.status !== 'waiting_for_customer') {
+      return res.status(422).json({ message: 'Invalid status progression. Must be waiting for customer to start.' });
     }
     if (status === 'completed' && ride.status !== 'in_progress') {
       return res.status(422).json({ message: 'Cannot complete a ride that has not started.' });
     }
 
     ride.status = status;
+    if (status === 'waiting_for_customer') {
+      ride.pickup_waiting_started_at = new Date();
+    }
     await ride.save();
 
     if (status === 'completed') {
