@@ -51,6 +51,12 @@ export default function Register() {
   const handleAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (accountForm.password !== accountForm.password_confirmation) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -313,6 +319,7 @@ export default function Register() {
                       <option value="suv">SUV</option>
                       <option value="hatchback">Hatchback</option>
                       <option value="bike">Bike / Motorcycle</option>
+                      <option value="rickshaw">Rickshaw</option>
                     </select>
                   </div>
                 </div>

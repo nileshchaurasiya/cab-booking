@@ -16,7 +16,10 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: 'Unauthenticated.' });
     }
 
-    const user = await User.findById(decoded.id).populate('driver_detail');
+    const user = await User.findById(decoded.id).populate({
+      path: 'driver_detail',
+      populate: { path: 'reviews_count' }
+    });
     if (!user) {
       return res.status(401).json({ message: 'Unauthenticated.' });
     }

@@ -11,6 +11,7 @@ let bookingProgressInterval = null;
 let currentTrackerProgress = 10;
 let previousPickup = ''; // Track previous pickup to detect changes
 let previousDrop = ''; // Track previous drop to detect changes
+let isCalculatingRoute = false; // Simulated loading state for route calculation
 
 // Function to randomize distance
 function randomizeDistance() {
@@ -68,10 +69,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initial distance & fare estimate simulation (sets to 0 since inputs are empty)
         updateFareEstimate();
 
-        // Listen for input changes to dynamically recalculate distance and fare
+        // Listen for input and change events to dynamically recalculate distance and fare
         const pickupField = document.getElementById('booking-pickup');
         const dropoffField = document.getElementById('booking-dropoff');
         if (pickupField && dropoffField) {
+            let calculationTimeout = null;
             const handleInputChange = () => {
                 const pickupVal = pickupField.value.trim();
                 const dropoffVal = dropoffField.value.trim();
@@ -81,24 +83,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                     currentDistance = 0;
                     previousPickup = pickupVal;
                     previousDrop = dropoffVal;
+                    isCalculatingRoute = false;
+                    if (calculationTimeout) clearTimeout(calculationTimeout);
+                    updateFareEstimate();
                 } else {
                     // Both fields have values — check if either changed
-                    if (pickupVal !== previousPickup || dropoffVal !== previousDrop) {
-                        // Location changed: recalculate distance
-                        randomizeDistance();
-                        previousPickup = pickupVal;
-                        previousDrop = dropoffVal;
-                    }
-                    // If neither changed and distance is already set, keep it
-                    if (currentDistance === 0) {
-                        randomizeDistance();
+                    if (pickupVal !== previousPickup || dropoffVal !== previousDrop || currentDistance === 0) {
+                        isCalculatingRoute = true;
+                        updateFareEstimate();
+                        
+                        if (calculationTimeout) clearTimeout(calculationTimeout);
+                        calculationTimeout = setTimeout(() => {
+                            randomizeDistance();
+                            previousPickup = pickupVal;
+                            previousDrop = dropoffVal;
+                            isCalculatingRoute = false;
+                            updateFareEstimate();
+                        }, 600);
                     }
                 }
-                updateFareEstimate();
             };
 
             pickupField.addEventListener('input', handleInputChange);
+            pickupField.addEventListener('change', handleInputChange);
             dropoffField.addEventListener('input', handleInputChange);
+            dropoffField.addEventListener('change', handleInputChange);
         }
 
         // Check for active booking
@@ -109,9 +118,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('booking-form-card').style.display = 'none';
                 document.getElementById('booking-tracking-card').style.display = 'block';
 
-                currentDistance = booking.distance;
-                currentFare = booking.fare;
-                currentCabClass = booking.cabClass;
+                 currentDistance = parseFloat(booking.distance) || 0;
+                 currentFare = parseFloat(booking.fare) || 0;
+                 currentCabClass = booking.cabClass;
 
                 // Restart polling/simulation
                 if (booking.driverName || booking.status === 'accepted' || booking.status === 'started') {
@@ -199,19 +208,39 @@ function updateFareEstimate() {
     const pickupVal = pickupField ? pickupField.value.trim() : '';
     const dropoffVal = dropoffField ? dropoffField.value.trim() : '';
 
+    const fareDisplay = document.getElementById('estimate-fare-display');
+    const distDisplay = document.getElementById('estimate-dist-display');
+
     if (!pickupVal || !dropoffVal) {
         currentDistance = 0;
         currentFare = 0;
-    } else {
-        if (currentDistance === 0) {
-            randomizeDistance();
-        }
-        // Fare = distance × vehicle rate (no base fare)
-        currentFare = currentDistance * currentRatePerKm;
+        if (fareDisplay) fareDisplay.textContent = '₹0.00';
+        if (distDisplay) distDisplay.textContent = '0.0 km';
+        return;
     }
 
-    document.getElementById('estimate-fare-display').textContent = `₹${currentFare.toFixed(2)}`;
-    document.getElementById('estimate-dist-display').textContent = `${currentDistance.toFixed(1)} km`;
+    if (isCalculatingRoute) {
+        if (fareDisplay) {
+            fareDisplay.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full animate-spin"></span>';
+        }
+        if (distDisplay) {
+            distDisplay.textContent = 'Calculating...';
+        }
+        return;
+    }
+
+    const parsedDist = parseFloat(currentDistance);
+    if (currentDistance === 0 || isNaN(parsedDist)) {
+        randomizeDistance();
+    }
+    // Fare = distance × vehicle rate (no base fare)
+    currentFare = (parseFloat(currentDistance) || 0) * currentRatePerKm;
+
+    const finalFare = parseFloat(currentFare) || 0;
+    const finalDist = parseFloat(currentDistance) || 0;
+
+    if (fareDisplay) fareDisplay.textContent = `₹${finalFare.toFixed(2)}`;
+    if (distDisplay) distDisplay.textContent = `${finalDist.toFixed(1)} km`;
 }
 
 // Handles submitting the ride booking request
@@ -434,6 +463,11 @@ function cancelCurrentBookingLocally(shouldRefund, toastMessage) {
     renderCustomerTripsHistory();
     renderWalletHistory();
     showToast(toastMessage);
+
+    // Refresh page to clean state
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
 }
 
 
@@ -792,8 +826,10 @@ function submitRideFeedback() {
     
     showToast("Thank you for your rating & feedback!", "success");
     
-    // Return back to booking form
-    resetDashboardToForm();
+    // Refresh page to clear cache and reset state completely
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
 }
 
 // Bind to window for HTML onclick actions

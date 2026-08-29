@@ -48,17 +48,20 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   return data;
 };
 
-export const calculateFare = (vehicleType: string, distance: number, pickup?: string, dropoff?: string): number => {
+export const calculateFare = (vehicleType: string, distance: any, pickup?: string, dropoff?: string): number => {
   if (!pickup || !dropoff || !pickup.trim() || !dropoff.trim()) {
     return 0;
   }
-  const normalized = vehicleType.toLowerCase();
+  const parsedDist = typeof distance === 'string' ? parseFloat(distance) : Number(distance);
+  if (isNaN(parsedDist) || parsedDist <= 0) {
+    return 0;
+  }
+  const normalized = (vehicleType || '').toLowerCase();
   let rate = 30; // Car = 30/km
   if (normalized === 'bike') {
     rate = 10; // Bike = 10/km
   } else if (normalized === 'rickshaw' || normalized === 'auto rickshaw' || normalized === 'auto') {
     rate = 20; // Rickshaw = 20/km
   }
-  return distance * rate;
+  return parsedDist * rate;
 };
-

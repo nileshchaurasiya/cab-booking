@@ -31,6 +31,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
   const [selectedCab, setSelectedCab] = useState({ name: 'Car', rate: 30 });
   const [bookingRide, setBookingRide] = useState(false);
   const [previewDistance, setPreviewDistance] = useState(0);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   // Active Ride tracking
   const [activeRide, setActiveRide] = useState<any>(null);
@@ -64,6 +65,22 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatDateTime = (dateVal: any) => {
+    if (!dateVal) return '—';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '—';
+    const formatted = d.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    return formatted.replace(/-/g, ' ').toUpperCase();
   };
 
   // Live waiting timer tick
@@ -107,6 +124,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
   // Feedback states
   const [feedbackStars, setFeedbackStars] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState('');
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // Notifications
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' }[]>([]);
@@ -164,7 +182,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
   // Poll for ride status updates every 5 seconds when a ride is active
   useEffect(() => {
-    if (!activeRide) return;
+    if (!activeRide || activeRide.status === 'completed') return;
     const pollInterval = setInterval(() => {
       fetchActiveRide();
     }, 5000);
@@ -177,10 +195,16 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     const d = dropoff.trim();
     if (!p || !d) {
       setPreviewDistance(0);
+      setIsCalculating(false);
     } else {
-      // Generate a new random distance between 3.0 and 22.0 km
-      const newDist = parseFloat((Math.random() * (22 - 3) + 3).toFixed(1));
-      setPreviewDistance(newDist);
+      setIsCalculating(true);
+      const timer = setTimeout(() => {
+        // Generate a new random distance between 3.0 and 22.0 km
+        const newDist = parseFloat((Math.random() * (22 - 3) + 3).toFixed(1));
+        setPreviewDistance(newDist);
+        setIsCalculating(false);
+      }, 600);
+      return () => clearTimeout(timer);
     }
   }, [pickup, dropoff]);
 
@@ -188,13 +212,23 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     try {
       const res = await apiRequest('/customer/rides');
       const rides = res.data || [];
-      const active = rides.find((r: any) => ['requested', 'accepted', 'arrived', 'in_progress'].includes(r.status));
+      const active = rides.find((r: any) => {
+        if (['requested', 'accepted', 'arrived', 'waiting_for_customer', 'in_progress'].includes(r.status)) {
+          return true;
+        }
+        if (r.status === 'completed') {
+          const hasReviewed = r.reviews && r.reviews.length > 0;
+          return !hasReviewed;
+        }
+        return false;
+      });
       if (active) {
         setActiveRide(active);
         // Simulate progress bar percentage depending on status
         if (active.status === 'requested') setProgressPercentage(15);
         if (active.status === 'accepted') setProgressPercentage(45);
         if (active.status === 'arrived') setProgressPercentage(70);
+        if (active.status === 'waiting_for_customer') setProgressPercentage(75);
         if (active.status === 'in_progress') setProgressPercentage(90);
       } else {
         setActiveRide(null);
@@ -281,6 +315,11 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
       setActiveRide(null);
       fetchHistory();
+
+      // Refresh page to clean state
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (err: any) {
       addToast(err.message || 'Failed to cancel ride.', 'error');
     }
@@ -334,9 +373,8 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
         }),
       });
       addToast('Review submitted successfully. Safe travels!');
+      setReviewSubmitted(true);
       setShowFeedbackModal(false);
-      setFeedbackComment('');
-      setActiveRide(null);
       fetchHistory();
     } catch (err: any) {
       addToast(err.message || 'Failed to submit review.', 'error');
@@ -357,8 +395,8 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
           <div
             key={toast.id}
             className={`pointer-events-auto p-4 rounded-xl shadow-lg border transition-all duration-300 text-xs font-semibold flex items-center gap-2 min-w-[250px] animate-fade-in ${toast.type === 'error'
-                ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+              ? 'bg-red-500/10 border-red-500/20 text-red-400'
+              : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
               }`}
           >
             <span>{toast.type === 'error' ? '⚠️' : '✅'}</span>
@@ -477,8 +515,8 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                         type="button"
                         onClick={() => setSelectedCab({ name: 'Car', rate: 30 })}
                         className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab.name === 'Car'
-                            ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
-                            : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
+                          ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
+                          : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
                           }`}
                       >
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🚗</span>
@@ -491,8 +529,8 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                         type="button"
                         onClick={() => setSelectedCab({ name: 'Rickshaw', rate: 20 })}
                         className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab.name === 'Rickshaw'
-                            ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
-                            : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
+                          ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
+                          : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
                           }`}
                       >
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🛺</span>
@@ -505,8 +543,8 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                         type="button"
                         onClick={() => setSelectedCab({ name: 'Bike', rate: 10 })}
                         className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab.name === 'Bike'
-                            ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
-                            : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
+                          ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
+                          : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
                           }`}
                       >
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🏍️</span>
@@ -518,15 +556,24 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                   </div>
 
                   {/* Estimation Panel */}
-                  <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs mt-2 transition-colors duration-300">
-                    <div>
-                      <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated Fare</span>
-                      <strong className="text-base text-sky-400 mt-0.5 block">₹{calculateFare(selectedCab.name, previewDistance, pickup, dropoff).toFixed(2)}</strong>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Est. Distance</span>
-                      <strong className="text-xs text-slate-800 dark:text-white mt-0.5 block">{previewDistance.toFixed(1)} km</strong>
-                    </div>
+                  <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs mt-2 transition-colors duration-300 min-h-[58px]">
+                    {isCalculating ? (
+                      <div className="flex items-center gap-2.5 text-sky-500 font-semibold w-full justify-center py-1">
+                        <span className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></span>
+                        <span className="text-[10px] uppercase tracking-wider animate-pulse">Calculating optimal route...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated Fare</span>
+                          <strong className="text-base text-sky-400 mt-0.5 block">₹{calculateFare(selectedCab.name, previewDistance, pickup, dropoff).toFixed(2)}</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Est. Distance</span>
+                          <strong className="text-xs text-slate-800 dark:text-white mt-0.5 block">{previewDistance.toFixed(1)} km</strong>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Wallet Warning if insufficient balance */}
@@ -555,6 +602,106 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                     {bookingRide ? 'Requesting Ride...' : '🚕 Book Cab Now'}
                   </button>
                 </form>
+              </div>
+            ) : activeRide.status === 'completed' ? (
+              /* Customer Ride Completed Summary & Review Card */
+              <div className="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-sm dark:shadow-xl relative overflow-hidden transition-all duration-300 text-xs">
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-400"></div>
+
+                <div className="text-center mb-6">
+                  <span className="text-3xl block mb-2">🎉</span>
+                  <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">Ride Completed ✓</h3>
+                  <p className="text-[10px] text-slate-500 dark:text-neutral-400 mt-1 uppercase font-bold tracking-wider">Ride Summary</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-2.5">
+                    <div className="flex justify-between items-start gap-4">
+                      <span className="text-slate-500">Pickup:</span>
+                      <strong className="text-slate-800 dark:text-white text-right font-bold">{activeRide.pickup_address}</strong>
+                    </div>
+                    <div className="flex justify-between items-start gap-4">
+                      <span className="text-slate-500">Destination:</span>
+                      <strong className="text-slate-800 dark:text-white text-right font-bold">{activeRide.dropoff_address}</strong>
+                    </div>
+                    <hr className="border-slate-200 dark:border-neutral-900" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Distance:</span>
+                      <strong className="text-slate-800 dark:text-white font-mono font-bold">{activeRide.distance} km</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Fare:</span>
+                      <strong className="text-slate-800 dark:text-white font-mono font-bold">₹{activeRide.fare}</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Payment:</span>
+                      <strong className="text-emerald-400 font-bold uppercase">Paid</strong>
+                    </div>
+                    <hr className="border-slate-200 dark:border-neutral-900" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Driver:</span>
+                      <strong className="text-slate-800 dark:text-white font-bold">{activeRide.driver?.name || 'Driver'}</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Vehicle:</span>
+                      <strong className="text-slate-800 dark:text-white font-bold">
+                        {activeRide.driver?.driver_detail?.vehicle_model || activeRide.vehicle_type} - {activeRide.driver?.driver_detail?.vehicle_plate_number || 'GJ05AB1234'}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {!reviewSubmitted ? (
+                    <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-4">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-white text-center">How was your ride?</h4>
+                      <div className="flex items-center justify-center gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            onClick={() => setFeedbackStars(star)}
+                            className="text-2xl focus:outline-none transition-all hover:scale-110 cursor-pointer"
+                          >
+                            <span className={star <= feedbackStars ? 'text-amber-400' : 'text-neutral-700'}>★</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">How was your experience?</label>
+                        <textarea
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          rows={2}
+                          placeholder="Write your review..."
+                          className="block w-full px-3 py-2 bg-slate-200 dark:bg-black border border-slate-350 dark:border-neutral-800 rounded-xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-600 text-xs focus:outline-none focus:border-sky-500 transition-all resize-none"
+                        />
+                      </div>
+                      <button
+                        onClick={handleFeedbackSubmit}
+                        className="w-full py-2.5 px-4 rounded-xl font-bold bg-sky-600 hover:bg-sky-500 text-black hover:-translate-y-0.5 transition-all cursor-pointer text-xs"
+                      >
+                        Submit Review
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl p-5 text-center space-y-3">
+                      <strong className="text-xs font-bold block">Review submitted successfully ✓</strong>
+                      <div className="text-2xl tracking-widest text-amber-400">
+                        {Array.from({ length: feedbackStars }).map((_, i) => '★').join('')}
+                      </div>
+                      <span className="text-[10px] text-neutral-400 block font-mono">Your rating: {feedbackStars}/5</span>
+                      <button
+                        onClick={() => {
+                          setReviewSubmitted(false);
+                          setActiveRide(null);
+                          setFeedbackComment('');
+                          window.location.reload();
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-black cursor-pointer text-xs"
+                      >
+                        Back to Booking
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               /* Active Ride Status Tracker Card */
@@ -597,7 +744,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                         </h3>
                         {activeRide.driver && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            ★ 4.9/5
+                            ★ {activeRide.driver.driver_detail?.rating ? Number(activeRide.driver.driver_detail.rating).toFixed(1) : '5.0'}/5
                           </span>
                         )}
                       </div>
@@ -648,24 +795,13 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
                   {/* Action Buttons */}
                   <div className="grid grid-cols-2 gap-3 mt-4">
-                    {['requested', 'accepted'].includes(activeRide.status) ? (
+                    {['requested', 'accepted', 'waiting_for_customer'].includes(activeRide.status) ? (
                       <button
                         onClick={handleCancelCurrentRide}
                         className="w-full py-3 px-4 rounded-xl font-bold bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all cursor-pointer text-xs"
                       >
                         🚫 Cancel Ride
                       </button>
-                    ) : activeRide.status === 'completed' ? (
-                      <button
-                        onClick={() => setShowFeedbackModal(true)}
-                        className="w-full py-3 px-4 rounded-xl font-bold bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 transition-all cursor-pointer text-xs"
-                      >
-                        ⭐ Rate Trip
-                      </button>
-                    ) : activeRide.status === 'waiting_for_customer' ? (
-                      <div className="text-xs text-amber-500 text-center py-2 col-span-2 font-bold animate-pulse">
-                        🚕 Driver has arrived. Please board the vehicle.
-                      </div>
                     ) : (
                       <div className="text-xs text-neutral-500 text-center py-2 col-span-2">
                         Trip in progress. Safe travels!
@@ -753,15 +889,15 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                                 {ride.pickup_address} → {ride.dropoff_address}
                               </h4>
                               <span className="text-[9px] text-slate-500 dark:text-slate-400">
-                                {new Date(ride.created_at).toLocaleString()} • {ride.vehicle_type || 'Car'} (Driver: {ride.driver?.name || 'None'})
+                                {formatDateTime(ride.created_at || ride.createdAt)} • {ride.vehicle_type || 'Car'} (Driver: {ride.driver?.name || 'None'})
                               </span>
                             </div>
                           </div>
                           <div className="text-right">
                             <strong className="text-xs font-bold text-sky-400 block">₹{ride.fare}</strong>
                             <span className={`text-[8px] px-1.5 py-0.5 rounded border uppercase font-semibold ${ride.status === 'completed'
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                : 'bg-red-500/10 text-red-400 border-red-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-red-500/10 text-red-400 border-red-500/20'
                               }`}>
                               {ride.status}
                             </span>
@@ -787,9 +923,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                     <div className="space-y-3">
                       {walletTransactions.map((tx) => {
                         const isCredit = (tx.type || '').toLowerCase() === 'deposit' || (tx.type || '').toLowerCase() === 'refund';
-                        const displayDate = tx.created_at
-                          ? new Date(tx.created_at).toLocaleString()
-                          : tx.date || new Date().toLocaleString();
+                        const displayDate = formatDateTime(tx.created_at || tx.createdAt || tx.date);
                         const amountVal = parseFloat(tx.amount || 0);
 
                         return (

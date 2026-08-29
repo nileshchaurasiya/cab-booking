@@ -183,11 +183,7 @@ class CabBookingApiTest extends TestCase
         // Driver details is_available should now be false
         $this->assertFalse(DriverDetail::where('user_id', $driver->id)->first()->is_available);
 
-        // 6. Driver updates status: arrived -> waiting_for_customer -> in_progress -> completed
-        $this->actingAs($driver)
-            ->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'arrived'])
-            ->assertStatus(200);
-
+        // 6. Driver updates status: waiting_for_customer -> in_progress -> completed
         $this->actingAs($driver)
             ->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'waiting_for_customer'])
             ->assertStatus(200);
@@ -373,19 +369,7 @@ class CabBookingApiTest extends TestCase
         $this->assertNotNull($dbRide->driver_accepted_at);
         $this->assertNotNull($dbRide->estimated_pickup_at);
 
-        // Try to update status directly to waiting_for_customer before arrived (should fail)
-        $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'waiting_for_customer'])
-            ->assertStatus(422);
-
-        // Try to update status directly to in_progress before arrived/waiting (should fail)
-        $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'in_progress'])
-            ->assertStatus(422);
-
-        // Arrive at pickup
-        $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'arrived'])
-            ->assertStatus(200);
-
-        // Try to update status directly to in_progress without waiting_for_customer (should fail)
+        // Try to update status directly to in_progress before waiting_for_customer (should fail)
         $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'in_progress'])
             ->assertStatus(422);
 
@@ -398,6 +382,102 @@ class CabBookingApiTest extends TestCase
         // Set to in_progress
         $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'in_progress'])
             ->assertStatus(200);
+    }
+
+    public function test_ride_review_and_rating_validations(): void
+    {
+        $customer = User::create([
+            'name' => 'Alice Customer',
+            'email' => 'alice_rev@customer.com',
+            'phone' => '111111_rev',
+            'password' => bcrypt('password'),
+            'role' => 'customer'
+        ]);
+
+        $otherCustomer = User::create([
+            'name' => 'Bob Customer',
+            'email' => 'bob_rev@customer.com',
+            'phone' => '222222_rev',
+            'password' => bcrypt('password'),
+            'role' => 'customer'
+        ]);
+
+        $driver = User::create([
+            'name' => 'Dave Driver',
+            'email' => 'dave_rev@driver.com',
+            'phone' => '333333_rev',
+            'password' => bcrypt('password'),
+            'role' => 'driver'
+        ]);
+
+        DriverDetail::create([
+            'user_id' => $driver->id,
+            'license_number' => 'LIC-777_rev',
+            'vehicle_model' => 'Honda Civic',
+            'vehicle_plate_number' => 'XYZ-999_rev',
+            'vehicle_color' => 'Black',
+            'vehicle_type' => 'sedan',
+            'is_available' => true,
+            'rating' => 5.00
+        ]);
+
+        $ride = Ride::create([
+            'customer_id' => $customer->id,
+            'driver_id' => $driver->id,
+            'pickup_address' => 'A',
+            'dropoff_address' => 'B',
+            'pickup_latitude' => 12.9716,
+            'pickup_longitude' => 77.5946,
+            'dropoff_latitude' => 12.9784,
+            'dropoff_longitude' => 77.6408,
+            'fare' => 100,
+            'distance' => 5,
+            'duration' => 10,
+            'status' => 'accepted',
+            'vehicle_type' => 'Car'
+        ]);
+
+        // 1. Try to review accepted ride (should fail)
+        $this->actingAs($customer)->postJson("/api/customer/rides/{$ride->id}/rate", [
+            'rating' => 5,
+            'comment' => 'Great!'
+        ])->assertStatus(422);
+
+        // Transition to completed
+        $ride->status = 'completed';
+        $ride->save();
+
+        // Create earning/payment record
+        \App\Models\Payment::create([
+            'ride_id' => $ride->id,
+            'amount' => 100,
+            'payment_method' => 'cash',
+            'payment_status' => 'completed',
+            'admin_commission' => 10,
+            'driver_earning' => 90
+        ]);
+
+        // 2. Try to review by other customer (should fail)
+        $this->actingAs($otherCustomer)->postJson("/api/customer/rides/{$ride->id}/rate", [
+            'rating' => 5,
+            'comment' => 'Hack attempt'
+        ])->assertStatus(404); // returns 404 because query filters by customer_id
+
+        // 3. Review successfully by actual customer
+        $this->actingAs($customer)->postJson("/api/customer/rides/{$ride->id}/rate", [
+            'rating' => 4,
+            'comment' => 'Good ride'
+        ])->assertStatus(201);
+
+        // 4. Try to submit duplicate review (should fail)
+        $this->actingAs($customer)->postJson("/api/customer/rides/{$ride->id}/rate", [
+            'rating' => 5,
+            'comment' => 'Duplicate attempt'
+        ])->assertStatus(422);
+
+        // 5. Verify average rating update
+        $driverDetail = DriverDetail::where('user_id', $driver->id)->first();
+        $this->assertEquals(4.00, $driverDetail->rating);
     }
 }
 

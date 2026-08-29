@@ -49,13 +49,31 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   // Stats
   const [earnings, setEarnings] = useState(0);
   const [tripsCount, setTripsCount] = useState(0);
-  const [driverRating, setDriverRating] = useState(5.00);
+  const [driverRating, setDriverRating] = useState<any>(5.00);
+  const [reviewsCount, setReviewsCount] = useState<number>(0);
+  const [completedSummary, setCompletedSummary] = useState<any>(null);
   const [waitingSeconds, setWaitingSeconds] = useState(0);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatDateTime = (dateVal: any) => {
+    if (!dateVal) return '—';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '—';
+    const formatted = d.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    return formatted.replace(/-/g, ' ').toUpperCase();
   };
 
   // Live waiting timer tick
@@ -109,6 +127,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   useEffect(() => {
     if (user.driver_detail) {
       setDriverRating(parseFloat(user.driver_detail.rating || '5.00'));
+      setReviewsCount(user.driver_detail.reviews_count || 0);
       setVehicle({
         license_number: user.driver_detail.license_number || '',
         vehicle_model: user.driver_detail.vehicle_model || '',
@@ -155,12 +174,13 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
     try {
       const res = await apiRequest('/driver/rides');
       const rides = res.data || [];
-      const active = rides.find((r: any) => ['accepted', 'arrived', 'in_progress'].includes(r.status));
+      const active = rides.find((r: any) => ['accepted', 'arrived', 'waiting_for_customer', 'in_progress'].includes(r.status));
       if (active) {
         setActiveTrip(active);
         setIsOnline(true);
         if (active.status === 'accepted') setTripProgress(30);
         if (active.status === 'arrived') setTripProgress(60);
+        if (active.status === 'waiting_for_customer') setTripProgress(70);
         if (active.status === 'in_progress') setTripProgress(90);
       }
     } catch (err) {
@@ -252,6 +272,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       } else if (status === 'completed') {
         setTripProgress(100);
         addToast('Journey completed successfully! Earnings added.');
+        setCompletedSummary(updatedRide);
         setActiveTrip(null);
         fetchHistory();
       }
@@ -263,8 +284,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   const handleCancelTrip = async () => {
     if (!activeTrip) return;
     try {
-      // For simplicity, we trigger cancel on the customer/ride cancellation flow or simulate cancelling
-      await apiRequest(`/customer/rides/${activeTrip.id}/cancel`, { method: 'POST' });
+      await apiRequest(`/driver/rides/${activeTrip.id}/cancel`, { method: 'POST' });
       addToast('Trip cancelled successfully.', 'success');
       setActiveTrip(null);
       fetchHistory();
@@ -428,7 +448,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
           <div className="lg:col-span-7 space-y-4">
 
             {/* OFFLINE STATE CARD */}
-            {!isOnline && (
+            {!isOnline && !completedSummary && (
               <div className="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-8 text-center shadow-sm dark:shadow-xl transition-all">
                 <span className="text-6xl block mb-4">💤</span>
                 <h2 className="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">You are currently Offline</h2>
@@ -445,7 +465,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
             )}
 
             {/* ONLINE & WAITING SCANNING RADAR */}
-            {isOnline && !activeTrip && !activeRequest && (
+            {isOnline && !activeTrip && !activeRequest && !completedSummary && (
               <div className="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-8 text-center shadow-sm dark:shadow-xl relative overflow-hidden transition-all">
                 <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-sky-600 via-yellow-400 to-sky-600"></div>
                 <h2 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">Active Radar Search</h2>
@@ -466,7 +486,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
             )}
 
             {/* NEW RIDE REQUEST CARD */}
-            {isOnline && activeRequest && !activeTrip && (
+            {isOnline && activeRequest && !activeTrip && !completedSummary && (
               <div className="bg-white dark:bg-[#050505] border-2 border-sky-600/50 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden transition-all">
                 <div className="absolute top-0 inset-x-0 h-1 bg-sky-600"></div>
 
@@ -540,6 +560,74 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                     className="col-span-2 py-3 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-black hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-xs shadow-lg"
                   >
                     ✅ Accept & Confirm
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* DRIVER - COMPLETED RIDE SUMMARY */}
+            {completedSummary && (
+              <div className="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-6 shadow-sm dark:shadow-xl relative overflow-hidden transition-all text-xs">
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-400"></div>
+
+                <div className="text-center mb-6">
+                  <span className="text-4xl block mb-2">🎉</span>
+                  <h3 className="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">Ride Completed ✓</h3>
+                  <p className="text-[10px] text-neutral-400 mt-1 uppercase font-bold tracking-wider">Ride Summary</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-3">
+                    <div className="flex justify-between items-start gap-4">
+                      <span className="text-slate-500">Pickup:</span>
+                      <strong className="text-slate-800 dark:text-white text-right font-bold">{completedSummary.pickup_address}</strong>
+                    </div>
+                    <div className="flex justify-between items-start gap-4">
+                      <span className="text-slate-500">Destination:</span>
+                      <strong className="text-slate-800 dark:text-white text-right font-bold">{completedSummary.dropoff_address}</strong>
+                    </div>
+                    <hr className="border-slate-200 dark:border-neutral-900" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Distance:</span>
+                      <strong className="text-slate-800 dark:text-white font-mono font-bold">{completedSummary.distance} km</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Ride Fare:</span>
+                      <strong className="text-slate-800 dark:text-white font-mono font-bold">₹{completedSummary.fare}</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Payment:</span>
+                      <strong className="text-slate-800 dark:text-white uppercase font-bold">{completedSummary.payment?.payment_method || 'Online'}</strong>
+                    </div>
+                    <hr className="border-slate-200 dark:border-neutral-900" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Driver Earning:</span>
+                      <strong className="text-emerald-400 text-sm font-mono font-bold">₹{completedSummary.payment?.driver_earning || (completedSummary.fare * 0.9).toFixed(2)}</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Admin Commission:</span>
+                      <strong className="text-orange-400 font-mono font-bold">₹{completedSummary.payment?.admin_commission || (completedSummary.fare * 0.1).toFixed(2)}</strong>
+                    </div>
+                    <hr className="border-slate-200 dark:border-neutral-900" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Ride Started:</span>
+                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.pickup_waiting_started_at || completedSummary.created_at)}</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Ride Completed:</span>
+                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.updated_at)}</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Total Ride Time:</span>
+                      <strong className="text-slate-805 dark:text-white font-bold">{completedSummary.duration} minutes</strong>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setCompletedSummary(null)}
+                    className="w-full py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-4 text-xs"
+                  >
+                    [ Back to Dashboard ]
                   </button>
                 </div>
               </div>
@@ -630,15 +718,6 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
 
                   {activeTrip.status === 'accepted' && (
                     <button
-                      onClick={() => handleUpdateStatus('arrived')}
-                      className="py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer"
-                    >
-                      📍 Arrive at Pickup
-                    </button>
-                  )}
-
-                  {activeTrip.status === 'arrived' && (
-                    <button
                       onClick={() => handleUpdateStatus('waiting_for_customer')}
                       className="py-3 px-4 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-black hover:-translate-y-0.5 transition-all text-xs cursor-pointer"
                     >
@@ -678,7 +757,9 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 text-center">
                   <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Rating Partner</span>
-                  <strong className="text-sky-500 text-base block font-bold">★ {driverRating.toFixed(2)}</strong>
+                  <strong className="text-sky-500 text-[10px] sm:text-xs block font-bold mt-0.5">
+                    {reviewsCount > 0 ? `★ ${driverRating.toFixed(2)} (${reviewsCount} Reviews)` : 'No ratings yet'}
+                  </strong>
                 </div>
                 <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 text-center relative group">
                   <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Vehicle Cab</span>
@@ -840,6 +921,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                   <option value="suv">SUV</option>
                   <option value="hatchback">Hatchback</option>
                   <option value="bike">Bike</option>
+                  <option value="rickshaw">Rickshaw</option>
                 </select>
               </div>
               <button

@@ -286,7 +286,7 @@ const cancel = async (req, res, next) => {
       return res.status(404).json({ message: 'Ride not found.' });
     }
 
-    if (!['requested', 'accepted'].includes(ride.status)) {
+    if (!['requested', 'accepted', 'waiting_for_customer'].includes(ride.status)) {
       return res.status(422).json({
         message: 'Cannot cancel a ride that is already in progress, completed, or cancelled.'
       });
@@ -356,6 +356,13 @@ const rate = async (req, res, next) => {
     if (!ride.driver_id) {
       return res.status(422).json({
         message: 'Cannot rate a ride with no driver assigned.'
+      });
+    }
+
+    const existingReview = await Review.findOne({ ride_id: ride._id });
+    if (existingReview) {
+      return res.status(422).json({
+        message: 'You have already reviewed this ride.'
       });
     }
 

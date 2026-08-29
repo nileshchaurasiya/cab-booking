@@ -194,11 +194,11 @@ const acceptRide = async (req, res, next) => {
 const updateStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    if (!status || !['arrived', 'waiting_for_customer', 'in_progress', 'completed'].includes(status)) {
+    if (!status || !['waiting_for_customer', 'in_progress', 'completed'].includes(status)) {
       return res.status(422).json({
         message: 'The given data was invalid.',
         errors: {
-          status: ['The status is invalid. Must be arrived, waiting_for_customer, in_progress, or completed.']
+          status: ['The status is invalid. Must be waiting_for_customer, in_progress, or completed.']
         }
       });
     }
@@ -219,11 +219,8 @@ const updateStatus = async (req, res, next) => {
     }
 
     // Ensure status progression is logical
-    if (status === 'arrived' && ride.status !== 'accepted') {
-      return res.status(422).json({ message: 'Invalid status progression. Must be accepted to arrive.' });
-    }
-    if (status === 'waiting_for_customer' && ride.status !== 'arrived') {
-      return res.status(422).json({ message: 'Invalid status progression. Must be arrived to pick up customer.' });
+    if (status === 'waiting_for_customer' && ride.status !== 'accepted') {
+      return res.status(422).json({ message: 'Invalid status progression. Must be accepted to pick up customer.' });
     }
     if (status === 'in_progress' && ride.status !== 'waiting_for_customer') {
       return res.status(422).json({ message: 'Invalid status progression. Must be waiting for customer to start.' });
@@ -408,11 +405,44 @@ const deleteVehicle = async (req, res, next) => {
   }
 };
 
+const cancelRide = async (req, res, next) => {
+  try {
+    const ride = await Ride.findOne({
+      _id: req.params.id,
+      driver_id: req.user._id
+    });
+
+    if (!ride) {
+      return res.status(404).json({ message: 'Ride not found.' });
+    }
+
+    if (['completed', 'cancelled'].includes(ride.status)) {
+      return res.status(422).json({
+        message: 'Cannot cancel a ride that is already completed or cancelled.'
+      });
+    }
+
+    ride.status = 'cancelled';
+    await ride.save();
+
+    // Mark driver as available again
+    await DriverDetail.findOneAndUpdate(
+      { user_id: req.user._id },
+      { is_available: true }
+    );
+
+    res.status(200).json({ message: 'Ride cancelled successfully.', ride });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   updateLocation,
   rideRequests,
   acceptRide,
   updateStatus,
+  cancelRide,
   rideHistory,
   registerVehicle,
   updateVehicle,

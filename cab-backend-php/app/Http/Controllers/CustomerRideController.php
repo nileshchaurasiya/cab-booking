@@ -205,7 +205,7 @@ class CustomerRideController extends Controller
         return DB::transaction(function () use ($request, $id) {
             $ride = Ride::where('customer_id', $request->user()->id)->with('payment')->findOrFail($id);
 
-            if (!in_array($ride->status, [Ride::STATUS_REQUESTED, Ride::STATUS_ACCEPTED])) {
+            if (!in_array($ride->status, [Ride::STATUS_REQUESTED, Ride::STATUS_ACCEPTED, Ride::STATUS_WAITING_FOR_CUSTOMER])) {
                 return response()->json([
                     'message' => 'Cannot cancel a ride that is already in progress, completed, or cancelled.'
                 ], 422);
@@ -272,6 +272,13 @@ class CustomerRideController extends Controller
         if (!$ride->driver_id) {
             return response()->json([
                 'message' => 'Cannot rate a ride with no driver assigned.'
+            ], 422);
+        }
+
+        $existingReview = Review::where('ride_id', $ride->id)->first();
+        if ($existingReview) {
+            return response()->json([
+                'message' => 'You have already reviewed this ride.'
             ], 422);
         }
 

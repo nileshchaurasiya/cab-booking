@@ -172,7 +172,7 @@ class DriverController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|string|in:arrived,waiting_for_customer,in_progress,completed'
+            'status' => 'required|string|in:waiting_for_customer,in_progress,completed'
         ]);
 
         $ride = Ride::where('driver_id', $request->user()->id)->findOrFail($id);
@@ -186,11 +186,8 @@ class DriverController extends Controller
         $newStatus = $request->status;
 
         // Ensure status progression is logical
-        if ($newStatus === 'arrived' && $ride->status !== Ride::STATUS_ACCEPTED) {
-            return response()->json(['message' => 'Invalid status progression. Must be accepted to arrive.'], 422);
-        }
-        if ($newStatus === 'waiting_for_customer' && $ride->status !== Ride::STATUS_ARRIVED) {
-            return response()->json(['message' => 'Invalid status progression. Must be arrived to pick up customer.'], 422);
+        if ($newStatus === 'waiting_for_customer' && $ride->status !== Ride::STATUS_ACCEPTED) {
+            return response()->json(['message' => 'Invalid status progression. Must be accepted to pick up customer.'], 422);
         }
         if ($newStatus === 'in_progress' && $ride->status !== Ride::STATUS_WAITING_FOR_CUSTOMER) {
             return response()->json(['message' => 'Invalid status progression. Must be waiting for customer to start.'], 422);
@@ -306,5 +303,33 @@ class DriverController extends Controller
         return response()->json([
             'message' => 'Vehicle details removed successfully.'
         ]);
+    }
+
+    /**
+     * Driver cancels a ride they accepted.
+     */
+    public function cancelRide(Request $request, $id)
+    {
+        return DB::transaction(function () use ($request, $id) {
+            $ride = Ride::where('driver_id', $request->user()->id)->findOrFail($id);
+
+            if (in_array($ride->status, [Ride::STATUS_COMPLETED, Ride::STATUS_CANCELLED])) {
+                return response()->json([
+                    'message' => 'Cannot cancel a ride that is already completed or cancelled.'
+                ], 422);
+            }
+
+            $ride->status = Ride::STATUS_CANCELLED;
+            $ride->save();
+
+            // Mark driver available again
+            DriverDetail::where('user_id', $request->user()->id)
+                ->update(['is_available' => true]);
+
+            return response()->json([
+                'message' => 'Ride cancelled successfully.',
+                'ride'    => $ride
+            ]);
+        });
     }
 }

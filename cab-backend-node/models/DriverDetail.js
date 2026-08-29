@@ -61,6 +61,13 @@ driverDetailSchema.virtual('user', {
   justOne: true
 });
 
+driverDetailSchema.virtual('reviews_count', {
+  ref: 'Review',
+  localField: 'user_id',
+  foreignField: 'reviewee_id',
+  count: true
+});
+
 // Configure JSON serialization to include virtuals and rename _id to id
 const transform = (doc, ret) => {
   ret.id = ret._id.toString();

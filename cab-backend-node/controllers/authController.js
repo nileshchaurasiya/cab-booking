@@ -92,7 +92,10 @@ const register = async (req, res, next) => {
     }
 
     // Fetch complete user with driver_detail populated
-    const populatedUser = await User.findById(user._id).populate('driver_detail');
+    const populatedUser = await User.findById(user._id).populate({
+      path: 'driver_detail',
+      populate: { path: 'reviews_count' }
+    });
     const token = generateToken(populatedUser);
 
     res.status(201).json({
@@ -118,7 +121,10 @@ const login = async (req, res, next) => {
       return res.status(422).json({ message: 'The given data was invalid.', errors });
     }
 
-    const user = await User.findOne({ email }).populate('driver_detail');
+    const user = await User.findOne({ email }).populate({
+      path: 'driver_detail',
+      populate: { path: 'reviews_count' }
+    });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(422).json({
         message: 'The given data was invalid.',

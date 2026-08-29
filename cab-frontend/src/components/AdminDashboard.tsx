@@ -140,6 +140,10 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
 
   const handleAddDriverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (driverForm.password !== driverForm.password_confirmation) {
+      setModalError('Passwords do not match.');
+      return;
+    }
     setRegisteringDriver(true);
     setModalError('');
 
@@ -631,6 +635,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                   <option value="suv">SUV</option>
                   <option value="hatchback">Hatchback</option>
                   <option value="bike">Bike</option>
+                  <option value="rickshaw">Rickshaw</option>
                 </select>
               </div>
 

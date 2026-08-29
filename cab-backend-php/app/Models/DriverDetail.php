@@ -29,6 +29,13 @@ class DriverDetail extends Model
         'rating' => 'float',
     ];
 
+    protected $appends = ['reviews_count'];
+
+    public function getReviewsCountAttribute()
+    {
+        return \App\Models\Review::where('reviewee_id', $this->user_id)->count();
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
