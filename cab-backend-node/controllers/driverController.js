@@ -172,7 +172,8 @@ const acceptRide = async (req, res, next) => {
     ride.driver_id = req.user._id;
     ride.status = 'accepted';
     ride.driver_accepted_at = new Date();
-    ride.estimated_pickup_at = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes ETA
+    const randomMins = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3 mins
+    ride.estimated_pickup_at = new Date(Date.now() + randomMins * 60 * 1000);
     await ride.save();
 
     driverDetail.is_available = false;
