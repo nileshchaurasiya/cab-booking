@@ -24,6 +24,9 @@ function RoleProtectedRoute({ children, allowedRole }: { children: React.ReactNo
 
 // Role-specific logout routine
 const handleLogout = (role: 'customer' | 'driver' | 'admin') => {
+  if (!window.confirm("Are you sure you want to log out of your account?")) {
+    return;
+  }
   localStorage.removeItem(`${role}_auth_token`);
   localStorage.removeItem(`${role}_auth_user`);
   window.location.href = '/login';

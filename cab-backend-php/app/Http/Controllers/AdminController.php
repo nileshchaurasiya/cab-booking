@@ -18,7 +18,11 @@ class AdminController extends Controller
         $totalEarnings = Payment::where('payment_status', 'completed')->sum('admin_commission');
         $totalCompletedRides = Ride::where('status', Ride::STATUS_COMPLETED)->count();
         $totalUsers = User::count();
-        $activeDrivers = DriverDetail::where('is_available', true)->count();
+        $activeDrivers = DriverDetail::where('is_available', true)
+            ->whereHas('user', function ($q) {
+                $q->where('status', '!=', \App\Models\User::STATUS_SUSPENDED);
+            })
+            ->count();
 
         return response()->json([
             'stats' => [
@@ -84,6 +88,38 @@ class AdminController extends Controller
         return response()->json([
             'message' => "User account status updated to: {$request->status}.",
             'user' => $user
+        ]);
+    }
+
+    /**
+     * Delete a driver and all their associated data from the system.
+     */
+    public function deleteDriver(Request $request, $id)
+    {
+        $driver = User::with('driverDetail')->findOrFail($id);
+
+        if ($driver->id === $request->user()->id) {
+            return response()->json([
+                'message' => 'You cannot delete your own account.'
+            ], 422);
+        }
+
+        if ($driver->role !== 'driver') {
+            return response()->json([
+                'message' => 'Only driver accounts can be removed through this endpoint.'
+            ], 422);
+        }
+
+        // Delete associated driver_detail if exists
+        if ($driver->driverDetail) {
+            $driver->driverDetail->delete();
+        }
+
+        // Delete the user account
+        $driver->delete();
+
+        return response()->json([
+            'message' => 'Driver account and all associated data removed successfully.'
         ]);
     }
 

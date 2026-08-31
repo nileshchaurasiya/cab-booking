@@ -36,7 +36,9 @@ const dashboard = async (req, res, next) => {
 
     const totalCompletedRides = await Ride.countDocuments({ status: 'completed' });
     const totalUsers = await User.countDocuments();
-    const activeDrivers = await DriverDetail.countDocuments({ is_available: true });
+    // Find active drivers whose user status is not suspended
+    const activeDriversDetails = await DriverDetail.find({ is_available: true }).populate('user_id');
+    const activeDrivers = activeDriversDetails.filter(d => d.user_id && d.user_id.status !== 'suspended').length;
 
     res.status(200).json({
       stats: {
@@ -156,9 +158,44 @@ const rides = async (req, res, next) => {
   }
 };
 
+const deleteDriver = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Driver not found.' });
+    }
+
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(422).json({
+        message: 'You cannot delete your own account.'
+      });
+    }
+
+    if (user.role !== 'driver') {
+      return res.status(422).json({
+        message: 'Only driver accounts can be removed through this endpoint.'
+      });
+    }
+
+    // Delete associated driver_detail if it exists
+    await DriverDetail.findOneAndDelete({ user_id: user._id });
+
+    // Delete the user account
+    await User.findByIdAndDelete(user._id);
+
+    res.status(200).json({
+      message: 'Driver account and all associated data removed successfully.'
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   dashboard,
   users,
   updateUserStatus,
+  deleteDriver,
   rides
 };

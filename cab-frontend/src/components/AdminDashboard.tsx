@@ -138,6 +138,20 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
     }
   };
 
+  const handleRemoveDriver = async (driverId: number, driverName: string) => {
+    if (!window.confirm(`Are you sure you want to permanently remove "${driverName}" from the system? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await apiRequest(`/admin/users/${driverId}`, { method: 'DELETE' });
+      addToast(`Driver "${driverName}" removed from system successfully.`);
+      fetchDrivers();
+      fetchStats();
+    } catch (err: any) {
+      addToast(err.message || 'Failed to remove driver from system.', 'error');
+    }
+  };
+
   const handleAddDriverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (driverForm.password !== driverForm.password_confirmation) {
@@ -246,7 +260,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6">
 
       {/* Toast Alert Banner */}
-      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none max-w-sm w-full items-center">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -290,7 +304,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
         {/* Earnings */}
         <div className="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-3xl p-6 flex items-center justify-between shadow-sm dark:shadow-xl">
           <div>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block">Admin Commission (10%)</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block">Admin Income (10%)</span>
             <strong className="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mt-1 block">
               ₹{(stats.total_earnings).toFixed(2)}
             </strong>
@@ -370,16 +384,27 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                         </span>
                       </td>
                       <td className="py-3.5 text-right">
-                        <button
-                          onClick={() => handleToggleUserStatus(drv.id, drv.status)}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${drv.status === 'suspended'
-                              ? 'bg-emerald-500/10 border-emerald-550/20 text-emerald-450 hover:bg-emerald-500/20'
-                              : 'bg-red-500/10 border-red-550/20 text-red-400 hover:bg-red-500/20'
-                            }`}
-                        >
-                          {drv.status === 'suspended' ? <UserCheck className="w-3.5 h-3.5 inline mr-1" /> : <UserMinus className="w-3.5 h-3.5 inline mr-1" />}
-                          {drv.status === 'suspended' ? 'Activate' : 'Suspend'}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleToggleUserStatus(drv.id, drv.status)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${drv.status === 'suspended'
+                                ? 'bg-emerald-500/10 border-emerald-550/20 text-emerald-450 hover:bg-emerald-500/20'
+                                : 'bg-red-500/10 border-red-550/20 text-red-400 hover:bg-red-500/20'
+                              }`}
+                          >
+                            {drv.status === 'suspended' ? <UserCheck className="w-3.5 h-3.5 inline mr-1" /> : <UserMinus className="w-3.5 h-3.5 inline mr-1" />}
+                            {drv.status === 'suspended' ? 'Activate' : 'Suspend'}
+                          </button>
+                          {!drv.driver_detail && (
+                            <button
+                              onClick={() => handleRemoveDriver(drv.id, drv.name)}
+                              className="px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border cursor-pointer bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20"
+                              title="No vehicle details — remove from system"
+                            >
+                              🗑️ Remove
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -476,7 +501,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                   <th className="pb-3 pr-2">Driver</th>
                   <th className="pb-3 pr-2">Route Details</th>
                   <th className="pb-3 pr-2 text-right">Fare</th>
-                  <th className="pb-3 pr-2 text-right">Commission (10%)</th>
+                  <th className="pb-3 pr-2 text-right">Admin Income (10%)</th>
                   <th className="pb-3 text-right">Status</th>
                 </tr>
               </thead>

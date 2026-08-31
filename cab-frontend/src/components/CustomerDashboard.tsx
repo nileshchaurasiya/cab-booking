@@ -28,7 +28,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
   // Booking Form State
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
-  const [selectedCab, setSelectedCab] = useState({ name: 'Car', rate: 30 });
+  const [selectedCab, setSelectedCab] = useState<{ name: string; rate: number } | null>(null);
   const [bookingRide, setBookingRide] = useState(false);
   const [previewDistance, setPreviewDistance] = useState(0);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -256,6 +256,10 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
       addToast('Please enter both pickup and drop-off points', 'error');
       return;
     }
+    if (!selectedCab) {
+      addToast('Please select a vehicle class', 'error');
+      return;
+    }
 
     const estimatedFare = calculateFare(selectedCab.name, previewDistance, pickup, dropoff);
     if (walletBalance <= 0) {
@@ -390,7 +394,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
     <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
 
       {/* Toast Notification Banner Container */}
-      <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none items-center">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -514,7 +518,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                       <button
                         type="button"
                         onClick={() => setSelectedCab({ name: 'Car', rate: 30 })}
-                        className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab.name === 'Car'
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab?.name === 'Car'
                           ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
                           : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
                           }`}
@@ -528,7 +532,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                       <button
                         type="button"
                         onClick={() => setSelectedCab({ name: 'Rickshaw', rate: 20 })}
-                        className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab.name === 'Rickshaw'
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab?.name === 'Rickshaw'
                           ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
                           : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
                           }`}
@@ -542,7 +546,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                       <button
                         type="button"
                         onClick={() => setSelectedCab({ name: 'Bike', rate: 10 })}
-                        className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab.name === 'Bike'
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all cursor-pointer text-center group ${selectedCab?.name === 'Bike'
                           ? 'bg-blue-50/70 dark:bg-slate-900 border border-sky-500 ring-2 ring-sky-500/30'
                           : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-700 hover:border-sky-500'
                           }`}
@@ -557,7 +561,17 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
                   {/* Estimation Panel */}
                   <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-3 sm:p-4 flex items-center justify-between text-xs mt-2 transition-colors duration-300 min-h-[58px]">
-                    {isCalculating ? (
+                    {!pickup.trim() || !dropoff.trim() ? (
+                      <div className="flex items-center gap-2.5 text-slate-400 dark:text-neutral-500 font-medium text-center w-full justify-center py-1">
+                        <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin inline-block"></span>
+                        <span className="text-[11px]">Enter pickup & drop-off points first</span>
+                      </div>
+                    ) : !selectedCab ? (
+                      <div className="flex items-center gap-2.5 text-sky-400 dark:text-sky-400 font-medium text-center w-full justify-center py-1">
+                        <span className="w-3.5 h-3.5 border-2 border-sky-400 border-t-transparent rounded-full animate-spin inline-block"></span>
+                        <span className="text-[11px] font-semibold">Select a vehicle class to view estimated fare</span>
+                      </div>
+                    ) : isCalculating ? (
                       <div className="flex items-center gap-2.5 text-sky-500 font-semibold w-full justify-center py-1">
                         <span className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></span>
                         <span className="text-[10px] uppercase tracking-wider animate-pulse">Calculating optimal route...</span>
@@ -565,7 +579,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                     ) : (
                       <>
                         <div>
-                          <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated Fare</span>
+                          <span className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Estimated Fare ({selectedCab.name})</span>
                           <strong className="text-base text-sky-400 mt-0.5 block">₹{calculateFare(selectedCab.name, previewDistance, pickup, dropoff).toFixed(2)}</strong>
                         </div>
                         <div className="text-right">
@@ -577,7 +591,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                   </div>
 
                   {/* Wallet Warning if insufficient balance */}
-                  {walletBalance < calculateFare(selectedCab.name, previewDistance, pickup, dropoff) && (
+                  {pickup.trim() && dropoff.trim() && selectedCab && !isCalculating && walletBalance < calculateFare(selectedCab.name, previewDistance, pickup, dropoff) && (
                     <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs mt-3">
                       <div className="flex items-center gap-1.5">
                         <span>⚠️</span>
@@ -685,7 +699,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                     <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl p-5 text-center space-y-3">
                       <strong className="text-xs font-bold block">Review submitted successfully ✓</strong>
                       <div className="text-2xl tracking-widest text-amber-400">
-                        {Array.from({ length: feedbackStars }).map((_, i) => '★').join('')}
+                        {Array.from({ length: feedbackStars }).map((_, _i) => '★').join('')}
                       </div>
                       <span className="text-[10px] text-neutral-400 block font-mono">Your rating: {feedbackStars}/5</span>
                       <button
@@ -877,13 +891,34 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
 
                   {/* Trips list */}
                   {loadingHistory ? (
-                    <div className="text-center py-8 text-xs text-neutral-500">Loading trips...</div>
+                    <div className="space-y-3">
+                      {[...Array(4)].map((_, i) => (
+                        <div key={i} className="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-neutral-800 animate-pulse shrink-0" />
+                            <div className="space-y-1.5">
+                              <div className="h-2.5 w-40 bg-slate-200 dark:bg-neutral-800 rounded-full animate-pulse" />
+                              <div className="h-2 w-28 bg-slate-200 dark:bg-neutral-800 rounded-full animate-pulse" />
+                            </div>
+                          </div>
+                          <div className="text-right space-y-1.5">
+                            <div className="h-2.5 w-10 bg-slate-200 dark:bg-neutral-800 rounded-full animate-pulse ml-auto" />
+                            <div className="h-2 w-14 bg-slate-200 dark:bg-neutral-800 rounded-full animate-pulse" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : filteredHistory.length > 0 ? (
                     <div className="space-y-3">
                       {filteredHistory.map((ride) => (
                         <div key={ride.id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 hover:border-slate-300 dark:hover:border-neutral-800 transition-all">
                           <div className="flex items-center gap-3">
-                            <span className="text-xl">{ride.status === 'completed' ? '✅' : '❌'}</span>
+                            <span className="text-xl">
+                              {ride.status === 'completed' ? '✅'
+                                : ride.status === 'cancelled' ? '❌'
+                                : ['requested', 'accepted', 'arrived', 'waiting_for_customer'].includes(ride.status) ? '🕐'
+                                : '🚗'}
+                            </span>
                             <div>
                               <h4 className="text-xs font-bold text-slate-800 dark:text-white">
                                 {ride.pickup_address} → {ride.dropoff_address}
@@ -895,9 +930,14 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                           </div>
                           <div className="text-right">
                             <strong className="text-xs font-bold text-sky-400 block">₹{ride.fare}</strong>
-                            <span className={`text-[8px] px-1.5 py-0.5 rounded border uppercase font-semibold ${ride.status === 'completed'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-red-500/10 text-red-400 border-red-500/20'
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded border uppercase font-semibold ${
+                              ride.status === 'completed'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                : ride.status === 'cancelled'
+                                ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                : ride.status === 'requested'
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
                               }`}>
                               {ride.status}
                             </span>

@@ -76,6 +76,25 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
     return formatted.replace(/-/g, ' ').toUpperCase();
   };
 
+  const calculateRideDuration = (ride: any) => {
+    if (!ride) return '0 minutes';
+    const startStr = ride.pickup_waiting_started_at || ride.driver_accepted_at || ride.created_at || ride.createdAt;
+    const endStr = ride.updated_at || ride.updatedAt || new Date().toISOString();
+
+    if (!startStr || !endStr) return `${ride.duration || 1} minutes`;
+
+    const start = new Date(startStr).getTime();
+    const end = new Date(endStr).getTime();
+
+    if (isNaN(start) || isNaN(end) || end < start) {
+      return `${ride.duration || 1} minutes`;
+    }
+
+    const diffMs = end - start;
+    const minutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  };
+
   // Live waiting timer tick
   useEffect(() => {
     if (!activeTrip || activeTrip.status !== 'waiting_for_customer' || !activeTrip.pickup_waiting_started_at) {
@@ -367,7 +386,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
     <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
 
       {/* Toast Notification Container */}
-      <div className="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full items-center">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -604,10 +623,6 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                       <span className="text-slate-500">Driver Earning:</span>
                       <strong className="text-emerald-400 text-sm font-mono font-bold">₹{completedSummary.payment?.driver_earning || (completedSummary.fare * 0.9).toFixed(2)}</strong>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Admin Commission:</span>
-                      <strong className="text-orange-400 font-mono font-bold">₹{completedSummary.payment?.admin_commission || (completedSummary.fare * 0.1).toFixed(2)}</strong>
-                    </div>
                     <hr className="border-slate-200 dark:border-neutral-900" />
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Ride Started:</span>
@@ -615,11 +630,11 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Ride Completed:</span>
-                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.updated_at)}</strong>
+                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.updated_at || completedSummary.updatedAt || new Date())}</strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Total Ride Time:</span>
-                      <strong className="text-slate-805 dark:text-white font-bold">{completedSummary.duration} minutes</strong>
+                      <strong className="text-slate-805 dark:text-white font-bold">{calculateRideDuration(completedSummary)}</strong>
                     </div>
                   </div>
 
@@ -819,7 +834,23 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
               </div>
 
               {loadingHistory ? (
-                <div className="text-center py-8 text-xs text-neutral-500">Loading trips...</div>
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-neutral-800 animate-pulse shrink-0" />
+                        <div className="space-y-1.5">
+                          <div className="h-2.5 w-40 bg-slate-200 dark:bg-neutral-800 rounded-full animate-pulse" />
+                          <div className="h-2 w-24 bg-slate-200 dark:bg-neutral-800 rounded-full animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="text-right space-y-1.5">
+                        <div className="h-2.5 w-10 bg-slate-200 dark:bg-neutral-800 rounded-full animate-pulse ml-auto" />
+                        <div className="h-2 w-14 bg-slate-200 dark:bg-neutral-800 rounded-full animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : filteredHistory.length > 0 ? (
                 <div className="space-y-3">
                   {filteredHistory.map((ride) => (

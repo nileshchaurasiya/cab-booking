@@ -32,6 +32,19 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   const data = await response.json();
 
   if (!response.ok) {
+    if (response.status === 401) {
+      if (path.startsWith('/customer') || endpoint.includes('/customer')) {
+        localStorage.removeItem('customer_auth_token');
+        localStorage.removeItem('customer_user');
+      } else if (path.startsWith('/driver') || endpoint.includes('/driver')) {
+        localStorage.removeItem('driver_auth_token');
+        localStorage.removeItem('driver_user');
+      } else if (path.startsWith('/admin') || endpoint.includes('/admin')) {
+        localStorage.removeItem('admin_auth_token');
+        localStorage.removeItem('admin_user');
+      }
+    }
+
     let errorMessage = data.message || 'Something went wrong';
     
     // If Laravel validation errors exist, extract the first specific error message

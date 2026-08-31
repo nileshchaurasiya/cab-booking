@@ -236,6 +236,14 @@ const updateStatus = async (req, res, next) => {
     await ride.save();
 
     if (status === 'completed') {
+      // Calculate actual ride duration in minutes
+      const startTime = ride.pickup_waiting_started_at || ride.driver_accepted_at || ride.createdAt;
+      if (startTime) {
+        const diffMs = Date.now() - new Date(startTime).getTime();
+        ride.duration = Math.max(1, Math.round(diffMs / (1000 * 60)));
+        await ride.save();
+      }
+
       // Free driver
       await DriverDetail.findOneAndUpdate(
         { user_id: req.user._id },

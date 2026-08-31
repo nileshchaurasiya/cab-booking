@@ -58,6 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
         Route::get('/admin/users', [AdminController::class, 'users']);
         Route::patch('/admin/users/{id}/status', [AdminController::class, 'updateUserStatus']);
+        Route::delete('/admin/users/{id}', [AdminController::class, 'deleteDriver']);
         Route::get('/admin/rides', [AdminController::class, 'rides']);
     });
 });

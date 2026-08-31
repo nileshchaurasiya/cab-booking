@@ -76,6 +76,7 @@ app.delete('/api/driver/vehicle', restrictTo('driver'), driverController.deleteV
 app.get('/api/admin/dashboard', restrictTo('admin'), adminController.dashboard);
 app.get('/api/admin/users', restrictTo('admin'), adminController.users);
 app.patch('/api/admin/users/:id/status', restrictTo('admin'), adminController.updateUserStatus);
+app.delete('/api/admin/users/:id', restrictTo('admin'), adminController.deleteDriver);
 app.get('/api/admin/rides', restrictTo('admin'), adminController.rides);
 
 // Error Handling Middleware

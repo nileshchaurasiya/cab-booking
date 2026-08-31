@@ -206,6 +206,14 @@ class DriverController extends Controller
             $ride->save();
 
             if ($newStatus === Ride::STATUS_COMPLETED) {
+                // Calculate actual elapsed duration in minutes
+                $startTime = $ride->pickup_waiting_started_at ?: ($ride->driver_accepted_at ?: $ride->created_at);
+                if ($startTime) {
+                    $actualDuration = max(1, (int) round(now()->diffInSeconds($startTime) / 60));
+                    $ride->duration = $actualDuration;
+                    $ride->save();
+                }
+
                 // Free the driver
                 $driverDetail = DriverDetail::where('user_id', $request->user()->id)->first();
                 if ($driverDetail) {

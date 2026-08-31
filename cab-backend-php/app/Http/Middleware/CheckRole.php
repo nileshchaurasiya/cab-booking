@@ -23,6 +23,12 @@ class CheckRole
             ], 403);
         }
 
+        if ($user->status === \App\Models\User::STATUS_SUSPENDED) {
+            return response()->json([
+                'message' => 'Your account has been suspended by an administrator.'
+            ], 403);
+        }
+
         return $next($request);
     }
 }
