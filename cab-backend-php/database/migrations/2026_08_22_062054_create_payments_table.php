@@ -19,6 +19,7 @@ return new class extends Migration
             $table->decimal('amount', 8, 2);
             $table->decimal('admin_commission', 8, 2)->default(0);
             $table->decimal('driver_earning', 8, 2)->default(0);
+            $table->boolean('is_payout_distributed')->default(false);
             $table->string('transaction_reference')->nullable();
             $table->timestamps();
         });

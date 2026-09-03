@@ -111,7 +111,7 @@ class DriverController extends Controller
             ->filter(function ($ride) use ($radius) {
                 return $ride->driver_distance_to_pickup <= $radius;
             })
-            ->sortBy('distance')
+            ->sortBy('driver_distance_to_pickup')
             ->values();
 
         return response()->json([
@@ -132,23 +132,27 @@ class DriverController extends Controller
             ], 422);
         }
 
-        $ride = Ride::findOrFail($id);
-
-        if ($ride->status !== Ride::STATUS_REQUESTED) {
-            return response()->json([
-                'message' => 'This ride has already been accepted or cancelled.'
-            ], 422);
-        }
-
-        // Verify driver vehicle compatibility with the ride vehicle type
         $expectedRideVehicleType = $this->getRideVehicleTypeForDriver($driverDetail->vehicle_type);
-        if ($ride->vehicle_type !== $expectedRideVehicleType) {
-            return response()->json([
-                'message' => 'This ride is for a different vehicle type.'
-            ], 422);
-        }
 
-        return DB::transaction(function () use ($ride, $request, $driverDetail) {
+        return DB::transaction(function () use ($id, $request, $driverDetail, $expectedRideVehicleType) {
+            $ride = Ride::where('id', $id)->lockForUpdate()->first();
+
+            if (!$ride) {
+                return response()->json(['message' => 'Ride request not found.'], 404);
+            }
+
+            if ($ride->status !== Ride::STATUS_REQUESTED) {
+                return response()->json([
+                    'message' => 'This ride has already been accepted or cancelled.'
+                ], 422);
+            }
+
+            if ($ride->vehicle_type !== $expectedRideVehicleType) {
+                return response()->json([
+                    'message' => 'This ride is for a different vehicle type.'
+                ], 422);
+            }
+
             $ride->update([
                 'driver_id' => $request->user()->id,
                 'status' => Ride::STATUS_ACCEPTED,
@@ -221,10 +225,48 @@ class DriverController extends Controller
                     $driverDetail->save();
                 }
 
-                // Complete the payment
-                if ($ride->payment) {
+                // Complete the payment and record earnings/commissions
+                if ($ride->payment && !$ride->payment->is_payout_distributed) {
                     $ride->payment->payment_status = 'completed';
+                    $ride->payment->is_payout_distributed = true;
                     $ride->payment->save();
+
+                    // 1. Record Driver Earning into Driver Wallet
+                    $driverWallet = \App\Models\Wallet::lockForUpdate()->firstOrCreate(
+                        ['user_id' => $request->user()->id],
+                        ['balance' => 0.00]
+                    );
+                    $driverWallet->balance += (float) $ride->payment->driver_earning;
+                    $driverWallet->save();
+
+                    \App\Models\WalletTransaction::create([
+                        'wallet_id' => $driverWallet->id,
+                        'user_id' => $request->user()->id,
+                        'type' => 'deposit',
+                        'amount' => (float) $ride->payment->driver_earning,
+                        'description' => "Earnings for Ride #{$ride->id}",
+                        'reference_id' => (string) $ride->id,
+                    ]);
+
+                    // 2. Record Admin Commission into Admin Wallet
+                    $admin = \App\Models\User::where('role', 'admin')->first();
+                    if ($admin) {
+                        $adminWallet = \App\Models\Wallet::lockForUpdate()->firstOrCreate(
+                            ['user_id' => $admin->id],
+                            ['balance' => 0.00]
+                        );
+                        $adminWallet->balance += (float) $ride->payment->admin_commission;
+                        $adminWallet->save();
+
+                        \App\Models\WalletTransaction::create([
+                            'wallet_id' => $adminWallet->id,
+                            'user_id' => $admin->id,
+                            'type' => 'deposit',
+                            'amount' => (float) $ride->payment->admin_commission,
+                            'description' => "Commission for Ride #{$ride->id}",
+                            'reference_id' => (string) $ride->id,
+                        ]);
+                    }
                 }
             }
 

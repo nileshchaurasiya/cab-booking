@@ -35,8 +35,9 @@ const register = async (req, res, next) => {
       errors.phone = ['The phone has already been taken.'];
     }
 
-    // Driver specific validation (only if license_number is provided)
-    if (role === 'driver' && license_number) {
+    // Driver specific validation
+    if (role === 'driver' && (license_number || vehicle_model || vehicle_plate_number || vehicle_color || vehicle_type)) {
+      if (!license_number) errors.license_number = ['The license number field is required.'];
       if (!vehicle_model) errors.vehicle_model = ['The vehicle model field is required.'];
       if (!vehicle_plate_number) errors.vehicle_plate_number = ['The vehicle plate number field is required.'];
       if (!vehicle_color) errors.vehicle_color = ['The vehicle color field is required.'];

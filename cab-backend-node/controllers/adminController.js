@@ -177,6 +177,18 @@ const deleteDriver = async (req, res, next) => {
       });
     }
 
+    // Check if driver has active rides in progress
+    const activeRide = await Ride.findOne({
+      driver_id: user._id,
+      status: { $in: ['accepted', 'arrived', 'waiting_for_customer', 'in_progress'] }
+    });
+
+    if (activeRide) {
+      return res.status(422).json({
+        message: 'Cannot delete driver account with an active ride in progress.'
+      });
+    }
+
     // Delete associated driver_detail if it exists
     await DriverDetail.findOneAndDelete({ user_id: user._id });
 

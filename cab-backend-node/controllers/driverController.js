@@ -1,6 +1,9 @@
 const DriverDetail = require('../models/DriverDetail');
 const Ride = require('../models/Ride');
 const Payment = require('../models/Payment');
+const Wallet = require('../models/Wallet');
+const WalletTransaction = require('../models/WalletTransaction');
+const User = require('../models/User');
 
 const deg2rad = (deg) => deg * (Math.PI / 180);
 
@@ -71,9 +74,18 @@ const updateLocation = async (req, res, next) => {
       return res.status(404).json({ message: 'Driver details not found.' });
     }
 
+    let isAvail;
+    if (typeof is_available === 'boolean') {
+      isAvail = is_available;
+    } else if (typeof is_available === 'string') {
+      isAvail = is_available.toLowerCase() === 'true' || is_available === '1';
+    } else {
+      isAvail = Boolean(is_available);
+    }
+
     driverDetail.current_latitude = parseFloat(latitude);
     driverDetail.current_longitude = parseFloat(longitude);
-    driverDetail.is_available = !!is_available;
+    driverDetail.is_available = isAvail;
     await driverDetail.save();
 
     res.status(200).json({
@@ -150,31 +162,43 @@ const acceptRide = async (req, res, next) => {
       });
     }
 
-    const ride = await Ride.findById(req.params.id);
-    if (!ride) {
+    const existingRide = await Ride.findById(req.params.id);
+    if (!existingRide) {
       return res.status(404).json({ message: 'Ride request not found.' });
-    }
-
-    if (ride.status !== 'requested') {
-      return res.status(422).json({
-        message: 'This ride has already been accepted or cancelled.'
-      });
     }
 
     // Verify driver vehicle compatibility with the ride vehicle type
     const expectedRideVehicleType = getRideVehicleTypeForDriver(driverDetail.vehicle_type);
-    if (ride.vehicle_type !== expectedRideVehicleType) {
+    if (existingRide.vehicle_type !== expectedRideVehicleType) {
       return res.status(422).json({
         message: 'This ride is for a different vehicle type.'
       });
     }
 
-    ride.driver_id = req.user._id;
-    ride.status = 'accepted';
-    ride.driver_accepted_at = new Date();
     const randomMins = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3 mins
-    ride.estimated_pickup_at = new Date(Date.now() + randomMins * 60 * 1000);
-    await ride.save();
+    const now = new Date();
+
+    // Atomic update to ensure no two drivers accept the same ride concurrently
+    const ride = await Ride.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        status: 'requested',
+        vehicle_type: expectedRideVehicleType
+      },
+      {
+        driver_id: req.user._id,
+        status: 'accepted',
+        driver_accepted_at: now,
+        estimated_pickup_at: new Date(now.getTime() + randomMins * 60 * 1000)
+      },
+      { new: true }
+    );
+
+    if (!ride) {
+      return res.status(422).json({
+        message: 'This ride has already been accepted or cancelled.'
+      });
+    }
 
     driverDetail.is_available = false;
     await driverDetail.save();
@@ -250,10 +274,50 @@ const updateStatus = async (req, res, next) => {
         { is_available: true }
       );
 
-      // Complete payment
+      // Complete payment and distribute earnings atomically to prevent duplicates
       if (ride.payment) {
-        ride.payment.payment_status = 'completed';
-        await ride.payment.save();
+        const updatedPayment = await Payment.findOneAndUpdate(
+          { _id: ride.payment._id, is_payout_distributed: { $ne: true } },
+          { payment_status: 'completed', is_payout_distributed: true },
+          { new: true }
+        );
+
+        if (updatedPayment) {
+          // 1. Distribute driver earning atomically
+          const driverWallet = await Wallet.findOneAndUpdate(
+            { user_id: req.user._id },
+            { $inc: { balance: updatedPayment.driver_earning } },
+            { upsert: true, new: true }
+          );
+          
+          await WalletTransaction.create({
+            wallet_id: driverWallet._id,
+            user_id: req.user._id,
+            type: 'deposit',
+            amount: updatedPayment.driver_earning,
+            description: `Earnings for Ride #${ride._id}`,
+            reference_id: ride._id.toString()
+          });
+
+          // 2. Distribute admin commission atomically
+          const admin = await User.findOne({ role: 'admin' });
+          if (admin) {
+            const adminWallet = await Wallet.findOneAndUpdate(
+              { user_id: admin._id },
+              { $inc: { balance: updatedPayment.admin_commission } },
+              { upsert: true, new: true }
+            );
+
+            await WalletTransaction.create({
+              wallet_id: adminWallet._id,
+              user_id: admin._id,
+              type: 'deposit',
+              amount: updatedPayment.admin_commission,
+              description: `Commission for Ride #${ride._id}`,
+              reference_id: ride._id.toString()
+            });
+          }
+        }
       }
     }
 

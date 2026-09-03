@@ -110,6 +110,39 @@ class CustomerRideController extends Controller
         $estimatedDuration = ceil(($distanceKm / 30) * 60);
         $paymentMethod = $validated['payment_method'] ?? 'cash';
 
+        // Map customer vehicle type to driver vehicle types
+        $vehicleTypeMap = [
+            'Car' => ['sedan', 'suv', 'hatchback'],
+            'Bike' => ['bike'],
+            'Rickshaw' => ['rickshaw']
+        ];
+        $matchingDriverTypes = $vehicleTypeMap[$vehicleType] ?? ['sedan', 'suv', 'hatchback'];
+
+        // Check if any available driver exists for the requested vehicle type
+        $availableDriverCount = DriverDetail::where('is_available', true)
+            ->whereIn('vehicle_type', $matchingDriverTypes)
+            ->count();
+
+        if ($availableDriverCount === 0) {
+            // Find which vehicle types actually have available drivers
+            $activeTypes = DriverDetail::where('is_available', true)->pluck('vehicle_type')->toArray();
+            $availableForCustomer = [];
+            if (array_intersect(['sedan', 'suv', 'hatchback'], $activeTypes)) $availableForCustomer[] = 'Car';
+            if (in_array('bike', $activeTypes)) $availableForCustomer[] = 'Bike';
+            if (in_array('rickshaw', $activeTypes)) $availableForCustomer[] = 'Rickshaw';
+
+            $suggestion = !empty($availableForCustomer)
+                ? ' Currently available: ' . implode(', ', $availableForCustomer) . '.'
+                : ' No drivers are currently active. Please try again later.';
+
+            return response()->json([
+                'message' => "Driver is not available. No {$vehicleType} drivers are currently active.{$suggestion}",
+                'errors' => [
+                    'vehicle_type' => ["Driver is not available. No {$vehicleType} drivers are currently active."]
+                ]
+            ], 422);
+        }
+
         return DB::transaction(function () use ($request, $validated, $vehicleType, $distanceKm, $estimatedFare, $estimatedDuration, $paymentMethod) {
             $userId = $request->user()->id;
 
@@ -145,13 +178,17 @@ class CustomerRideController extends Controller
                 'scheduled_at' => $validated['scheduled_at'] ?? null,
             ]);
 
+            $adminCommission = round($estimatedFare * (config('cab.commission_percentage', 10) / 100), 2);
+            $driverEarning = round($estimatedFare - $adminCommission, 2);
+
             Payment::create([
                 'ride_id' => $ride->id,
                 'payment_method' => $paymentMethod,
                 'payment_status' => $paymentMethod === 'wallet' ? 'completed' : 'pending',
                 'amount' => $estimatedFare,
-                'admin_commission' => round($estimatedFare * (config('cab.commission_percentage', 10) / 100), 2),
-                'driver_earning' => round($estimatedFare * ((100 - config('cab.commission_percentage', 10)) / 100), 2),
+                'admin_commission' => $adminCommission,
+                'driver_earning' => $driverEarning,
+                'is_payout_distributed' => false,
             ]);
 
             if ($paymentMethod === 'wallet') {

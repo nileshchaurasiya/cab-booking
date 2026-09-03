@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
     'amount',
     'admin_commission',
     'driver_earning',
+    'is_payout_distributed',
     'transaction_reference'
 ])]
 class Payment extends Model
@@ -23,6 +24,7 @@ class Payment extends Model
         'amount' => 'float',
         'admin_commission' => 'float',
         'driver_earning' => 'float',
+        'is_payout_distributed' => 'boolean',
     ];
 
     public function ride()

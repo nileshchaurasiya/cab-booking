@@ -754,7 +754,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                     <div className="flex-grow">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-bold text-slate-800 dark:text-white">
-                          {activeRide.driver ? activeRide.driver.name : 'Searching for nearest driver...'}
+                          {activeRide.driver ? activeRide.driver.name : 'Searching for driver (No driver assigned yet)...'}
                         </h3>
                         {activeRide.driver && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">

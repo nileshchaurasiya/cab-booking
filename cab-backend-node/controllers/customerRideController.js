@@ -101,7 +101,16 @@ const store = async (req, res, next) => {
       return res.status(422).json({ message: 'The given data was invalid.', errors });
     }
 
-    const distanceKm = parseFloat(distance);
+    let distanceKm = parseFloat(distance);
+    if (isNaN(distanceKm) || distanceKm <= 0) {
+      distanceKm = getDistance(
+        parseFloat(pickup_latitude),
+        parseFloat(pickup_longitude),
+        parseFloat(dropoff_latitude),
+        parseFloat(dropoff_longitude)
+      );
+      if (distanceKm <= 0) distanceKm = 1.0;
+    }
 
     // Normalize vehicle rate
     const vehicleInput = (vehicle_type || 'car').toLowerCase();
@@ -150,9 +159,9 @@ const store = async (req, res, next) => {
       }
 
       return res.status(422).json({
-        message: `No ${normalizedVehicleType} drivers are currently active.${suggestion}`,
+        message: `Driver is not available. No ${normalizedVehicleType} drivers are currently active.${suggestion}`,
         errors: {
-          vehicle_type: [`No ${normalizedVehicleType} drivers are currently active.`]
+          vehicle_type: [`Driver is not available. No ${normalizedVehicleType} drivers are currently active.`]
         }
       });
     }
@@ -164,72 +173,84 @@ const store = async (req, res, next) => {
     let wallet = null;
 
     if (paymentMethod === 'wallet') {
-      wallet = await Wallet.findOne({ user_id: req.user._id });
-      if (!wallet) {
-        wallet = await Wallet.create({ user_id: req.user._id, balance: 0 });
-      }
+      wallet = await Wallet.findOneAndUpdate(
+        { user_id: req.user._id, balance: { $gte: estimatedFare } },
+        { $inc: { balance: -estimatedFare } },
+        { new: true }
+      );
 
-      if (wallet.balance < estimatedFare) {
+      if (!wallet) {
+        const existingWallet = await Wallet.findOne({ user_id: req.user._id });
+        const currentBal = existingWallet ? existingWallet.balance : 0;
         return res.status(422).json({
-          message: `Insufficient wallet balance (₹${wallet.balance.toFixed(2)}). Required: ₹${estimatedFare.toFixed(2)}. Please recharge your wallet.`
+          message: `Insufficient wallet balance (₹${currentBal.toFixed(2)}). Required: ₹${estimatedFare.toFixed(2)}. Please recharge your wallet.`
         });
       }
-
-      wallet.balance = parseFloat((wallet.balance - estimatedFare).toFixed(2));
-      await wallet.save();
     }
-
-    const ride = new Ride({
-      customer_id: req.user._id,
-      pickup_address,
-      dropoff_address,
-      pickup_latitude: parseFloat(pickup_latitude),
-      pickup_longitude: parseFloat(pickup_longitude),
-      dropoff_latitude: parseFloat(dropoff_latitude),
-      dropoff_longitude: parseFloat(dropoff_longitude),
-      status: 'requested',
-      vehicle_type: normalizedVehicleType,
-      fare: estimatedFare,
-      distance: distanceKm,
-      duration: estimatedDuration,
-      scheduled_at: scheduled_at ? new Date(scheduled_at) : null
-    });
-
-    await ride.save();
 
     const commissionPercent = parseInt(process.env.COMMISSION_PERCENTAGE) || 10;
     const adminCommission = Math.round(estimatedFare * (commissionPercent / 100) * 100) / 100;
-    const driverEarning = Math.round(estimatedFare * ((100 - commissionPercent) / 100) * 100) / 100;
+    const driverEarning = Math.round((estimatedFare - adminCommission) * 100) / 100;
 
-    const payment = new Payment({
-      ride_id: ride._id,
-      payment_method: paymentMethod,
-      payment_status: paymentMethod === 'wallet' ? 'completed' : 'pending',
-      amount: estimatedFare,
-      admin_commission: adminCommission,
-      driver_earning: driverEarning
-    });
-
-    await payment.save();
-
-    if (paymentMethod === 'wallet' && wallet) {
-      await WalletTransaction.create({
-        wallet_id: wallet._id,
-        user_id: req.user._id,
-        type: 'payment',
-        amount: estimatedFare,
-        description: `Fare for Ride #${ride._id}`,
-        reference_id: ride._id.toString()
+    try {
+      const ride = new Ride({
+        customer_id: req.user._id,
+        pickup_address,
+        dropoff_address,
+        pickup_latitude: parseFloat(pickup_latitude),
+        pickup_longitude: parseFloat(pickup_longitude),
+        dropoff_latitude: parseFloat(dropoff_latitude),
+        dropoff_longitude: parseFloat(dropoff_longitude),
+        status: 'requested',
+        vehicle_type: normalizedVehicleType,
+        fare: estimatedFare,
+        distance: distanceKm,
+        duration: estimatedDuration,
+        scheduled_at: scheduled_at ? new Date(scheduled_at) : null
       });
+
+      await ride.save();
+
+      const payment = new Payment({
+        ride_id: ride._id,
+        payment_method: paymentMethod,
+        payment_status: paymentMethod === 'wallet' ? 'completed' : 'pending',
+        amount: estimatedFare,
+        admin_commission: adminCommission,
+        driver_earning: driverEarning,
+        is_payout_distributed: false
+      });
+
+      await payment.save();
+
+      if (paymentMethod === 'wallet' && wallet) {
+        await WalletTransaction.create({
+          wallet_id: wallet._id,
+          user_id: req.user._id,
+          type: 'payment',
+          amount: estimatedFare,
+          description: `Fare for Ride #${ride._id}`,
+          reference_id: ride._id.toString()
+        });
+      }
+
+      // Populate and return
+      const populatedRide = await Ride.findById(ride._id).populate('payment');
+
+      res.status(201).json({
+        message: 'Ride requested successfully. Searching for nearby drivers...',
+        ride: populatedRide
+      });
+    } catch (err) {
+      // Rollback deducted wallet balance if ride or payment creation fails
+      if (paymentMethod === 'wallet' && wallet) {
+        await Wallet.findOneAndUpdate(
+          { _id: wallet._id },
+          { $inc: { balance: estimatedFare } }
+        );
+      }
+      throw err;
     }
-
-    // Populate and return
-    const populatedRide = await Ride.findById(ride._id).populate('payment');
-
-    res.status(201).json({
-      message: 'Ride requested successfully. Searching for nearby drivers...',
-      ride: populatedRide
-    });
 
   } catch (err) {
     next(err);

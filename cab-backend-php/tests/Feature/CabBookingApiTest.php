@@ -479,5 +479,139 @@ class CabBookingApiTest extends TestCase
         $driverDetail = DriverDetail::where('user_id', $driver->id)->first();
         $this->assertEquals(4.00, $driverDetail->rating);
     }
+
+    public function test_admin_cannot_delete_driver_with_active_ride(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin User',
+            'email' => 'admin_del@test.com',
+            'phone' => '9990001',
+            'password' => bcrypt('password'),
+            'role' => 'admin'
+        ]);
+
+        $customer = User::create([
+            'name' => 'Customer',
+            'email' => 'customer_del@test.com',
+            'phone' => '9990002',
+            'password' => bcrypt('password'),
+            'role' => 'customer'
+        ]);
+
+        $driver = User::create([
+            'name' => 'Driver',
+            'email' => 'driver_del@test.com',
+            'phone' => '9990003',
+            'password' => bcrypt('password'),
+            'role' => 'driver'
+        ]);
+
+        DriverDetail::create([
+            'user_id' => $driver->id,
+            'license_number' => 'LIC-DEL-1',
+            'vehicle_model' => 'Sedan',
+            'vehicle_plate_number' => 'DEL-01',
+            'vehicle_color' => 'White',
+            'vehicle_type' => 'sedan',
+            'is_available' => false
+        ]);
+
+        Ride::create([
+            'customer_id' => $customer->id,
+            'driver_id' => $driver->id,
+            'pickup_address' => 'A',
+            'dropoff_address' => 'B',
+            'pickup_latitude' => 12.9716,
+            'pickup_longitude' => 77.5946,
+            'dropoff_latitude' => 12.9784,
+            'dropoff_longitude' => 77.6408,
+            'fare' => 100,
+            'distance' => 5,
+            'duration' => 10,
+            'status' => 'in_progress',
+            'vehicle_type' => 'Car'
+        ]);
+
+        // Attempt deletion by admin
+        $response = $this->actingAs($admin)->deleteJson("/api/admin/users/{$driver->id}");
+        $response->assertStatus(422)
+            ->assertJsonFragment([
+                'message' => 'Cannot delete driver account with an active ride in progress.'
+            ]);
+    }
+
+    public function test_wallet_ride_payout_distribution_on_completion(): void
+    {
+        $admin = User::create([
+            'name' => 'Super Admin',
+            'email' => 'admin_w@test.com',
+            'phone' => '8880001',
+            'password' => bcrypt('password'),
+            'role' => 'admin'
+        ]);
+
+        $customer = User::create([
+            'name' => 'Customer W',
+            'email' => 'customer_w@test.com',
+            'phone' => '8880002',
+            'password' => bcrypt('password'),
+            'role' => 'customer'
+        ]);
+
+        $driver = User::create([
+            'name' => 'Driver W',
+            'email' => 'driver_w@test.com',
+            'phone' => '8880003',
+            'password' => bcrypt('password'),
+            'role' => 'driver'
+        ]);
+
+        DriverDetail::create([
+            'user_id' => $driver->id,
+            'license_number' => 'LIC-W-1',
+            'vehicle_model' => 'Sedan',
+            'vehicle_plate_number' => 'W-01',
+            'vehicle_color' => 'White',
+            'vehicle_type' => 'sedan',
+            'is_available' => true,
+            'current_latitude' => 12.9716,
+            'current_longitude' => 77.5946
+        ]);
+
+        // Customer recharges wallet with 500
+        $this->actingAs($customer)->postJson('/api/customer/wallet/recharge', ['amount' => 500])->assertStatus(200);
+
+        // Customer requests ride via wallet (fare = 300)
+        $rideRes = $this->actingAs($customer)->postJson('/api/customer/rides', [
+            'pickup_address' => 'A',
+            'dropoff_address' => 'B',
+            'pickup_latitude' => 12.9716,
+            'pickup_longitude' => 77.5946,
+            'dropoff_latitude' => 12.9784,
+            'dropoff_longitude' => 77.6408,
+            'distance' => 10, // Car = 30 * 10 = 300
+            'payment_method' => 'wallet',
+            'vehicle_type' => 'Car'
+        ]);
+
+        $rideRes->assertStatus(201);
+        $rideId = $rideRes->json('ride.id');
+
+        // Accept and complete ride by driver
+        $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/accept")->assertStatus(200);
+        $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'waiting_for_customer'])->assertStatus(200);
+        $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'in_progress'])->assertStatus(200);
+        $this->actingAs($driver)->postJson("/api/driver/rides/{$rideId}/status", ['status' => 'completed'])->assertStatus(200);
+
+        // Verify driver received 90% (270) and admin received 10% (30) in wallets
+        $driverWallet = \App\Models\Wallet::where('user_id', $driver->id)->first();
+        $adminWallet = \App\Models\Wallet::where('user_id', $admin->id)->first();
+
+        $this->assertNotNull($driverWallet);
+        $this->assertEquals(270.00, $driverWallet->balance);
+
+        $this->assertNotNull($adminWallet);
+        $this->assertEquals(30.00, $adminWallet->balance);
+    }
 }
 

@@ -30,6 +30,24 @@ class CustomerWalletIsolationTest extends TestCase
             'role' => User::ROLE_CUSTOMER,
         ]);
 
+        $bikeDriver = User::factory()->create([
+            'name' => 'Bike Driver',
+            'email' => 'bikedriver_' . uniqid() . '@test.com',
+            'phone' => '987654' . rand(1000, 9999),
+            'role' => User::ROLE_DRIVER,
+        ]);
+        \App\Models\DriverDetail::create([
+            'user_id' => $bikeDriver->id,
+            'license_number' => 'LIC-BIKE-123',
+            'vehicle_model' => 'Yamaha FZ',
+            'vehicle_plate_number' => 'KA-01-BK-999',
+            'vehicle_color' => 'Black',
+            'vehicle_type' => 'bike',
+            'is_available' => true,
+            'current_latitude' => 12.9716,
+            'current_longitude' => 77.5946,
+        ]);
+
         // TEST 1: Customer A adds ₹500
         Sanctum::actingAs($customerA);
         $resA1 = $this->postJson('/api/customer/wallet/recharge', ['amount' => 500]);

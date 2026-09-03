@@ -11,14 +11,31 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   const [displayProgress, setDisplayProgress] = useState(0);
   const [requestTimer, setRequestTimer] = useState(5);
 
+  // Keep timer ref to prevent double execution in StrictMode/re-renders
+  const countdownTimerRef = React.useRef<any>(null);
+
   // 5-second countdown timer for incoming request
   useEffect(() => {
-    if (!activeRequest) return;
+    if (!activeRequest) {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+      return;
+    }
+
     setRequestTimer(8);
-    const timer = setInterval(() => {
+
+    // Clear any existing timer before starting a new one
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
+
+    countdownTimerRef.current = setInterval(() => {
       setRequestTimer((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
           setActiveRequest(null);
           addToast('Ride request expired.', 'error');
           return 0;
@@ -26,7 +43,13 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(timer);
+
+    return () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    };
   }, [activeRequest?.id]);
 
   // Slowly animate displayProgress toward tripProgress (~1% per second)
@@ -787,6 +810,34 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                   </button>
                 </div>
               </div>
+
+              Recent Customer Reviews inside stats
+              {(() => {
+                const recentReviews = historyRides
+                  .filter((ride: any) => ride.reviews && ride.reviews.length > 0)
+                  .flatMap((ride: any) =>
+                    ride.reviews.map((rev: any) => ({
+                      ...rev,
+                      customer_name: ride.customer?.name || 'Customer',
+                    }))
+                  )
+                  .slice(0, 3);
+
+                return recentReviews.length > 0 ? (
+                  <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-2.5">
+                    <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider">Latest Reviews</span>
+                    {recentReviews.map((rev: any, idx: number) => (
+                      <div key={rev.id || idx} className="flex items-start gap-2 text-xs">
+                        <span className="text-amber-400 text-sm leading-none mt-0.5">{'★'.repeat(rev.rating || 0)}{'☆'.repeat(5 - (rev.rating || 0))}</span>
+                        <div className="flex-grow min-w-0">
+                          <span className="text-slate-800 dark:text-white font-bold block text-[10px]">{rev.customer_name}</span>
+                          {rev.comment && <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate italic">"{rev.comment}"</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
 
               {/* Earnings summary details */}
               <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 flex items-center justify-between text-xs">

@@ -110,6 +110,17 @@ class AdminController extends Controller
             ], 422);
         }
 
+        // Check if driver has active rides in progress
+        $hasActiveRide = Ride::where('driver_id', $driver->id)
+            ->whereIn('status', [Ride::STATUS_ACCEPTED, 'arrived', Ride::STATUS_WAITING_FOR_CUSTOMER, Ride::STATUS_IN_PROGRESS])
+            ->exists();
+
+        if ($hasActiveRide) {
+            return response()->json([
+                'message' => 'Cannot delete driver account with an active ride in progress.'
+            ], 422);
+        }
+
         // Delete associated driver_detail if exists
         if ($driver->driverDetail) {
             $driver->driverDetail->delete();

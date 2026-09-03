@@ -28,6 +28,10 @@ const paymentSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  is_payout_distributed: {
+    type: Boolean,
+    default: false
+  },
   transaction_reference: {
     type: String,
     default: null
