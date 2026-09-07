@@ -916,8 +916,8 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                             <span className="text-xl">
                               {ride.status === 'completed' ? '✅'
                                 : ride.status === 'cancelled' ? '❌'
-                                : ['requested', 'accepted', 'arrived', 'waiting_for_customer'].includes(ride.status) ? '🕐'
-                                : '🚗'}
+                                  : ['requested', 'accepted', 'arrived', 'waiting_for_customer'].includes(ride.status) ? '🕐'
+                                    : '🚗'}
                             </span>
                             <div>
                               <h4 className="text-xs font-bold text-slate-800 dark:text-white">
@@ -930,14 +930,13 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                           </div>
                           <div className="text-right">
                             <strong className="text-xs font-bold text-sky-400 block">₹{ride.fare}</strong>
-                            <span className={`text-[8px] px-1.5 py-0.5 rounded border uppercase font-semibold ${
-                              ride.status === 'completed'
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded border uppercase font-semibold ${ride.status === 'completed'
                                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                 : ride.status === 'cancelled'
-                                ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                : ride.status === 'requested'
-                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+                                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                  : ride.status === 'requested'
+                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
                               }`}>
                               {ride.status}
                             </span>

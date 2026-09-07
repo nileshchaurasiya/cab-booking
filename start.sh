@@ -54,7 +54,7 @@ if [ "$BACKEND_CHOICE" = "php" ] || [ "$BACKEND_CHOICE" = "laravel" ] || [ "$BAC
     fi
 
     cd cab-backend-php || { echo -e "${RED}Failed to enter cab-backend-php directory${NC}"; exit 1; }
-    php artisan serve --port=8000 &
+    php artisan serve --host=0.0.0.0 --port=8000 &
     BACKEND_PID=$!
     cd ..
     BACKEND_NAME="Laravel PHP (MySQL on Port 3306)"

@@ -49,10 +49,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 shadow-lg shadow-amber-500/5 mb-4">
-            <Car className="w-9 h-9 text-amber-400" />
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">Indian Cabs</h1>
+          <img src="/indian-cab-logo.jpg" alt="Indian Cabs Logo" className="w-40 h-40 mx-auto mb-2 object-contain rounded-2xl" />
           <p className="text-sm text-neutral-400 font-medium mt-1">Premium ride booking & dispatch portal</p>
         </div>
 

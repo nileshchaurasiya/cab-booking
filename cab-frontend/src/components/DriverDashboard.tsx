@@ -145,6 +145,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   // Modals state
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
 
   // Vehicle states
   const [vehicle, setVehicle] = useState({
@@ -211,6 +212,46 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
 
     return () => clearInterval(interval);
   }, [isOnline, activeTrip, activeRequest]);
+
+  // Auto-set driver offline when they close/leave the page
+  useEffect(() => {
+    const setOffline = () => {
+      const token = localStorage.getItem('driver_auth_token');
+      if (!token) return;
+
+      const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`;
+      const body = JSON.stringify({ latitude: 12.9716, longitude: 77.5946, is_available: false });
+
+      // sendBeacon is reliable during page unload (fires even when tab is closing)
+      const blob = new Blob([body], { type: 'application/json' });
+      const headers = { type: 'application/json', Authorization: `Bearer ${token}` };
+
+      // Try sendBeacon first (most reliable for unload), fallback to fetch keepalive
+      try {
+        const beaconUrl = `${API_BASE_URL}/driver/location`;
+        // sendBeacon doesn't support custom headers, so use fetch with keepalive
+        fetch(beaconUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body,
+          keepalive: true,
+        });
+      } catch (e) {
+        // Silently fail — best effort
+      }
+    };
+
+    window.addEventListener('beforeunload', setOffline);
+    window.addEventListener('pagehide', setOffline);
+
+    return () => {
+      window.removeEventListener('beforeunload', setOffline);
+      window.removeEventListener('pagehide', setOffline);
+    };
+  }, []);
 
   const fetchActiveTrip = async () => {
     try {
@@ -793,12 +834,27 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
               <h2 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight">Driver Partner Details</h2>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 text-center">
-                  <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Rating Partner</span>
-                  <strong className="text-sky-500 text-[10px] sm:text-xs block font-bold mt-0.5">
-                    {reviewsCount > 0 ? `★ ${driverRating.toFixed(2)} (${reviewsCount} Reviews)` : 'No ratings yet'}
-                  </strong>
-                </div>
+                <button
+                  onClick={() => setShowReviewsModal(true)}
+                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 text-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-900 transition-all hover:scale-[1.02] active:scale-95"
+                >
+                  <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-2">Rating Partner</span>
+                  {reviewsCount > 0 ? (
+                    <>
+                      <div className="flex items-center justify-center gap-0.5 text-lg">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span key={star} className={star <= Math.round(driverRating) ? 'text-amber-400' : 'text-slate-300 dark:text-neutral-700'}>
+                            ★
+                          </span>
+                        ))}
+                      </div>
+                      <span className="text-sky-500 text-[10px] font-bold mt-1 block">{driverRating.toFixed(1)} ({reviewsCount} reviews)</span>
+                      <span className="text-slate-400 text-[9px] mt-1 block">Tap to view reviews</span>
+                    </>
+                  ) : (
+                    <span className="text-slate-400 text-[10px] font-bold block">No ratings yet</span>
+                  )}
+                </button>
                 <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 text-center relative group">
                   <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider mb-1">Vehicle Cab</span>
                   <strong className="text-emerald-400 text-xs block font-bold truncate mt-0.5">{vehicle.vehicle_model || 'UNSET'}</strong>
@@ -810,34 +866,6 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                   </button>
                 </div>
               </div>
-
-              Recent Customer Reviews inside stats
-              {(() => {
-                const recentReviews = historyRides
-                  .filter((ride: any) => ride.reviews && ride.reviews.length > 0)
-                  .flatMap((ride: any) =>
-                    ride.reviews.map((rev: any) => ({
-                      ...rev,
-                      customer_name: ride.customer?.name || 'Customer',
-                    }))
-                  )
-                  .slice(0, 3);
-
-                return recentReviews.length > 0 ? (
-                  <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-2.5">
-                    <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider">Latest Reviews</span>
-                    {recentReviews.map((rev: any, idx: number) => (
-                      <div key={rev.id || idx} className="flex items-start gap-2 text-xs">
-                        <span className="text-amber-400 text-sm leading-none mt-0.5">{'★'.repeat(rev.rating || 0)}{'☆'.repeat(5 - (rev.rating || 0))}</span>
-                        <div className="flex-grow min-w-0">
-                          <span className="text-slate-800 dark:text-white font-bold block text-[10px]">{rev.customer_name}</span>
-                          {rev.comment && <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate italic">"{rev.comment}"</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null;
-              })()}
 
               {/* Earnings summary details */}
               <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 flex items-center justify-between text-xs">
@@ -1105,6 +1133,71 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                 className="py-3 px-4 rounded-xl font-bold bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all cursor-pointer text-xs"
               >
                 Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reviews Modal */}
+      {showReviewsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowReviewsModal(false)}>
+          <div className="bg-white dark:bg-[#0c0c0e] border border-slate-200 dark:border-neutral-800 rounded-[2rem] w-full max-w-md max-h-[80vh] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-200 dark:border-neutral-800 text-center">
+              <h3 className="text-lg font-extrabold text-slate-800 dark:text-white">Customer Reviews</h3>
+              {reviewsCount > 0 && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-center gap-0.5 text-2xl">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span key={star} className={star <= Math.round(driverRating) ? 'text-amber-400' : 'text-slate-300 dark:text-neutral-700'}>
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sky-500 text-sm font-bold mt-1">{driverRating.toFixed(2)} average ({reviewsCount} reviews)</p>
+                </div>
+              )}
+            </div>
+            {/* Reviews List */}
+            <div className="p-6 overflow-y-auto max-h-[50vh] space-y-3">
+              {(() => {
+                const allReviews = historyRides
+                  .filter((ride: any) => ride.reviews && ride.reviews.length > 0)
+                  .flatMap((ride: any) =>
+                    ride.reviews.map((rev: any) => ({
+                      ...rev,
+                      customer_name: ride.customer?.name || 'Customer',
+                      route: `${ride.pickup_location} → ${ride.dropoff_location}`,
+                    }))
+                  );
+
+                return allReviews.length > 0 ? (
+                  allReviews.map((rev: any, idx: number) => (
+                    <div key={rev.id || idx} className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-neutral-800 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-800 dark:text-white">{rev.customer_name}</span>
+                        <span className="text-amber-400 text-sm leading-none">{'★'.repeat(rev.rating || 0)}{'☆'.repeat(5 - (rev.rating || 0))}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mb-1">{rev.route}</p>
+                      {rev.comment && <p className="text-xs text-slate-600 dark:text-slate-300 italic">"{rev.comment}"</p>}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-slate-400 text-sm">No reviews yet</p>
+                    <p className="text-slate-500 text-xs mt-1">Complete rides to receive customer feedback</p>
+                  </div>
+                );
+              })()}
+            </div>
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-neutral-800">
+              <button
+                onClick={() => setShowReviewsModal(false)}
+                className="w-full py-3 rounded-xl font-bold text-xs bg-slate-100 dark:bg-neutral-900 hover:bg-slate-200 dark:hover:bg-neutral-800 text-slate-600 dark:text-white border border-slate-200 dark:border-neutral-700 transition-all cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

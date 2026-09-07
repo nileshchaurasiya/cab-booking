@@ -53,7 +53,7 @@ const seedDatabase = async () => {
       vehicle_plate_number: 'MH12AB1234',
       vehicle_color: 'White',
       vehicle_type: 'sedan',
-      is_available: true,
+      is_available: false,
       current_latitude: 12.9716,
       current_longitude: 77.5946,
       rating: 4.90
