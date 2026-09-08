@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
 import { Settings } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 export default function DriverDashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
+  useEffect(() => { document.title = 'Driver - Indian Cabs'; }, []);
   // Offline / Waiting / Request / Active Trip states
   const [isOnline, setIsOnline] = useState(false);
   const [activeRequest, setActiveRequest] = useState<any>(null);
@@ -222,11 +224,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`;
       const body = JSON.stringify({ latitude: 12.9716, longitude: 77.5946, is_available: false });
 
-      // sendBeacon is reliable during page unload (fires even when tab is closing)
-      const blob = new Blob([body], { type: 'application/json' });
-      const headers = { type: 'application/json', Authorization: `Bearer ${token}` };
-
-      // Try sendBeacon first (most reliable for unload), fallback to fetch keepalive
+      // Try fetch keepalive for unload
       try {
         const beaconUrl = `${API_BASE_URL}/driver/location`;
         // sendBeacon doesn't support custom headers, so use fetch with keepalive
@@ -283,6 +281,18 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       setTripsCount(completed.length);
       const totalEarned = completed.reduce((sum: number, r: any) => sum + parseFloat(r.fare), 0);
       setEarnings(totalEarned * 0.9);
+
+      // Dynamically calculate average rating & count from all ride reviews
+      const allReviews = rides
+        .filter((ride: any) => ride.reviews && ride.reviews.length > 0)
+        .flatMap((ride: any) => ride.reviews);
+
+      if (allReviews.length > 0) {
+        const totalRating = allReviews.reduce((sum: number, r: any) => sum + (parseFloat(r.rating) || 0), 0);
+        const avg = totalRating / allReviews.length;
+        setDriverRating(avg);
+        setReviewsCount(allReviews.length);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -512,11 +522,12 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                   {vehicle.vehicle_plate_number || 'VEHICLE UNREGISTERED'}
                 </span>
               </div>
+              <ThemeToggle />
               <button
                 onClick={() => setShowProfileModal(true)}
                 className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-200 dark:hover:bg-neutral-800 hover:scale-105 active:scale-95 text-slate-650 dark:text-neutral-400 focus:outline-none"
               >
-                <Settings className="w-5 h-5 transition-transform duration-500" />
+                <Settings className="w-5 h-5 transition-transform duration-500 hover:rotate-90" />
               </button>
             </div>
           </div>
@@ -621,8 +632,8 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                 {/* Earnings estimation */}
                 <div className="bg-gradient-to-r from-sky-600/5 to-sky-600/5 border border-sky-600/10 rounded-2xl p-4 flex items-center justify-between text-xs mb-6">
                   <div>
-                    <span className="text-[9px] text-slate-500 dark:text-neutral-400 uppercase tracking-wider block">Estimated Earnings</span>
-                    <strong className="text-xl text-orange-400 mt-0.5 block">₹{activeRequest.fare}</strong>
+                    <span className="text-[9px] text-slate-500 dark:text-neutral-400 uppercase tracking-wider block">Estimated Earnings (90%)</span>
+                    <strong className="text-xl text-orange-400 mt-0.5 block">₹{(parseFloat(activeRequest.fare) * 0.9).toFixed(2)}</strong>
                   </div>
                   <div className="text-right">
                     <span className="text-[9px] text-slate-555 dark:text-neutral-400 uppercase tracking-wider block">Estimated Duration</span>
@@ -738,8 +749,8 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wider">Fare</span>
-                    <span className="font-bold text-sky-400">₹{activeTrip.fare}</span>
+                    <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wider">Earnings</span>
+                    <span className="font-bold text-sky-400">₹{(parseFloat(activeTrip.fare) * 0.9).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -944,7 +955,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                         </div>
                       </div>
                       <div className="text-right">
-                        <strong className="text-xs font-bold text-emerald-400 block">₹{ride.fare}</strong>
+                        <strong className="text-xs font-bold text-emerald-400 block">₹{(parseFloat(ride.fare) * 0.9).toFixed(2)}</strong>
                         <span className="text-[7px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase font-semibold">
                           {ride.status}
                         </span>
@@ -1168,7 +1179,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                     ride.reviews.map((rev: any) => ({
                       ...rev,
                       customer_name: ride.customer?.name || 'Customer',
-                      route: `${ride.pickup_location} → ${ride.dropoff_location}`,
+                      route: `${ride.pickup_address || ride.pickup_location || ''} → ${ride.dropoff_address || ride.dropoff_location || ''}`,
                     }))
                   );
 

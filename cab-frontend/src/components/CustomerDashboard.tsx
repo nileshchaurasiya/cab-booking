@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest, calculateFare } from '../services/api';
 import { Share2, Settings } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 export default function CustomerDashboard({ user, onLogout }: { user: any, onLogout: () => void }) {
+  useEffect(() => { document.title = 'Customer - Indian Cabs'; }, []);
   // Navigation tabs for Ride History List
   const [historyTab, setHistoryTab] = useState<'trips' | 'wallet'>('trips');
   const [historyFilter, setHistoryFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
@@ -448,6 +450,7 @@ export default function CustomerDashboard({ user, onLogout }: { user: any, onLog
                 <span className="text-xs font-bold text-slate-800 dark:text-white block">{user.name}</span>
                 <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium block">Active customer</span>
               </div>
+              <ThemeToggle />
               <button
                 onClick={() => setShowProfileModal(true)}
                 className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-200 dark:hover:bg-neutral-800 hover:scale-105 active:scale-95 text-slate-600 dark:text-neutral-400 focus:outline-none"

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { Car, Lock, Mail, User as UserIcon, Phone, FileText, Palette, Layers, ChevronRight } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 export default function Register() {
   const [searchParams] = useSearchParams();
@@ -111,7 +112,10 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#050505] text-slate-900 dark:text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans transition-colors duration-300">
+      <div className="absolute top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
       {/* Orbs */}
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl -z-10"></div>
@@ -122,22 +126,22 @@ export default function Register() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-lg shadow-amber-500/5 mb-3">
             <Car className="w-8 h-8 text-amber-400" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">Join Indian Cabs</h1>
-          <p className="text-xs text-neutral-400 font-medium mt-1">Register a new account to get started</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Join Indian Cabs</h1>
+          <p className="text-xs text-slate-500 dark:text-neutral-400 font-medium mt-1">Register a new account to get started</p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#0c0c0e] border border-neutral-900 rounded-[2rem] p-8 shadow-2xl transition-all duration-300">
+        <div className="bg-white dark:bg-[#0c0c0e] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-8 shadow-xl dark:shadow-2xl transition-all duration-300">
           
           {error && (
-            <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center font-medium">
+            <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-xs text-center font-medium">
               {error}
             </div>
           )}
 
           {step === 'account' ? (
             <>
-              <h2 className="text-lg font-bold text-center text-white mb-6">
+              <h2 className="text-lg font-bold text-center text-slate-800 dark:text-white mb-6">
                 Sign up as {accountForm.role.charAt(0).toUpperCase() + accountForm.role.slice(1)}
               </h2>
 
@@ -145,7 +149,7 @@ export default function Register() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <UserIcon className="h-4 w-4 text-neutral-500" />
+                      <UserIcon className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="text"
@@ -154,13 +158,13 @@ export default function Register() {
                       value={accountForm.name}
                       onChange={handleAccountChange}
                       placeholder="Full Name"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
 
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Mail className="h-4 w-4 text-neutral-500" />
+                      <Mail className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="email"
@@ -169,13 +173,13 @@ export default function Register() {
                       value={accountForm.email}
                       onChange={handleAccountChange}
                       placeholder="Email Address"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
 
                   <div className="relative md:col-span-2">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Phone className="h-4 w-4 text-neutral-500" />
+                      <Phone className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="text"
@@ -184,13 +188,13 @@ export default function Register() {
                       value={accountForm.phone}
                       onChange={handleAccountChange}
                       placeholder="Phone Number (e.g. +1234567890)"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
 
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-neutral-500" />
+                      <Lock className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="password"
@@ -199,13 +203,13 @@ export default function Register() {
                       value={accountForm.password}
                       onChange={handleAccountChange}
                       placeholder="Password"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
 
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-neutral-500" />
+                      <Lock className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="password"
@@ -214,7 +218,7 @@ export default function Register() {
                       value={accountForm.password_confirmation}
                       onChange={handleAccountChange}
                       placeholder="Confirm Password"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
                 </div>
@@ -222,7 +226,7 @@ export default function Register() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-4 rounded-2xl font-bold bg-white text-black shadow-lg transition-all duration-200 cursor-pointer hover:bg-neutral-200 mt-6 active:scale-95 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 px-4 rounded-2xl font-bold bg-slate-900 dark:bg-white text-white dark:text-black shadow-lg transition-all duration-200 cursor-pointer hover:bg-slate-800 dark:hover:bg-neutral-200 mt-6 active:scale-95 flex items-center justify-center gap-2"
                 >
                   {loading ? 'Registering Account...' : 'Continue'}
                   <ChevronRight className="w-4 h-4" />
@@ -231,23 +235,23 @@ export default function Register() {
 
               <div className="text-center text-xs text-slate-400 mt-6 font-semibold">
                 Already have an account?
-                <Link to="/login" className="text-amber-550 hover:text-amber-400 font-bold ml-1 transition-all">
+                <Link to="/login" className="text-amber-500 hover:text-amber-400 font-bold ml-1 transition-all">
                   Login here
                 </Link>
               </div>
             </>
           ) : (
             <>
-              <h2 className="text-lg font-bold text-center text-white mb-2">
+              <h2 className="text-lg font-bold text-center text-slate-800 dark:text-white mb-2">
                 Vehicle Registration
               </h2>
-              <p className="text-xs text-neutral-400 text-center mb-6 font-medium">Please link a vehicle details to start accepting ride requests.</p>
+              <p className="text-xs text-slate-500 dark:text-neutral-400 text-center mb-6 font-medium">Please link a vehicle details to start accepting ride requests.</p>
 
               <form onSubmit={handleVehicleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FileText className="h-4 w-4 text-neutral-500" />
+                      <FileText className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="text"
@@ -256,13 +260,13 @@ export default function Register() {
                       value={vehicleForm.license_number}
                       onChange={handleVehicleChange}
                       placeholder="License Number"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
 
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Car className="h-4 w-4 text-neutral-500" />
+                      <Car className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="text"
@@ -271,13 +275,13 @@ export default function Register() {
                       value={vehicleForm.vehicle_model}
                       onChange={handleVehicleChange}
                       placeholder="Vehicle Model (e.g. Camry)"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
 
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FileText className="h-4 w-4 text-neutral-500" />
+                      <FileText className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="text"
@@ -286,13 +290,13 @@ export default function Register() {
                       value={vehicleForm.vehicle_plate_number}
                       onChange={handleVehicleChange}
                       placeholder="Plate Number"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all uppercase"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all uppercase"
                     />
                   </div>
 
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Palette className="h-4 w-4 text-neutral-500" />
+                      <Palette className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <input
                       type="text"
@@ -301,19 +305,19 @@ export default function Register() {
                       value={vehicleForm.vehicle_color}
                       onChange={handleVehicleChange}
                       placeholder="Vehicle Color"
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                   </div>
 
                   <div className="relative md:col-span-2">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Layers className="h-4 w-4 text-neutral-500" />
+                      <Layers className="h-4 w-4 text-slate-400 dark:text-neutral-500" />
                     </div>
                     <select
                       name="vehicle_type"
                       value={vehicleForm.vehicle_type}
                       onChange={handleVehicleChange}
-                      className="block w-full pl-11 pr-4 py-3 bg-black border border-neutral-800 rounded-2xl text-neutral-100 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer"
+                      className="block w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-2xl text-slate-800 dark:text-neutral-100 text-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer"
                     >
                       <option value="sedan">Sedan</option>
                       <option value="suv">SUV</option>
@@ -327,7 +331,7 @@ export default function Register() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-4 rounded-2xl font-bold bg-white text-black shadow-lg transition-all duration-200 cursor-pointer hover:bg-neutral-200 mt-6 active:scale-95"
+                  className="w-full py-3.5 px-4 rounded-2xl font-bold bg-slate-900 dark:bg-white text-white dark:text-black shadow-lg transition-all duration-200 cursor-pointer hover:bg-slate-800 dark:hover:bg-neutral-200 mt-6 active:scale-95"
                 >
                   {loading ? 'Saving Vehicle Details...' : 'Complete Registration'}
                 </button>
@@ -335,7 +339,7 @@ export default function Register() {
 
               <button
                 onClick={handleSkipVehicle}
-                className="w-full py-3 text-center text-xs text-neutral-500 hover:text-neutral-350 cursor-pointer font-bold mt-4 block"
+                className="w-full py-3 text-center text-xs text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-350 cursor-pointer font-bold mt-4 block"
               >
                 Skip vehicle registration for now
               </button>
@@ -344,7 +348,7 @@ export default function Register() {
         </div>
       </div>
 
-      <footer className="text-center py-6 text-neutral-600 text-xs mt-6">
+      <footer className="text-center py-6 text-slate-400 dark:text-neutral-600 text-xs mt-6">
         <p>Indian Cabs System v2.0 • React & Sanctum Edition</p>
       </footer>
     </div>

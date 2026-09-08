@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
 import { Users, IndianRupee, CheckCircle, RefreshCw, UserMinus, UserCheck, Plus, LogOut } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 export default function AdminDashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
+  useEffect(() => { document.title = 'Admin - Indian Cabs'; }, []);
   // Statistics states
   const [stats, setStats] = useState({
     total_earnings: 0,
@@ -244,6 +246,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-400/10 to-indigo-500/10 border border-purple-500/20 shadow-lg flex items-center justify-center text-lg">
                 👨‍💻
               </div>
+              <ThemeToggle />
               <button
                 onClick={onLogout}
                 title="Logout"
@@ -276,22 +279,22 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
       </div>
 
       {/* Admin Title Block */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-[#0c0c0e] border border-neutral-900 rounded-[2rem] p-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-white dark:bg-[#0c0c0e] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-6 shadow-sm dark:shadow-xl transition-colors duration-300">
         <div>
-          <h2 className="text-xl font-extrabold text-white">Admin Operations Panel</h2>
-          <p className="text-xs text-neutral-400">System analytics, driver moderation, and active booking oversight</p>
+          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Admin Operations Panel</h2>
+          <p className="text-xs text-slate-500 dark:text-neutral-400">System analytics, driver moderation, and active booking oversight</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleRefreshAll}
-            className="p-2.5 rounded-xl border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 text-neutral-400 hover:text-white cursor-pointer transition-all"
+            className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-100 dark:bg-neutral-950 hover:bg-slate-200 dark:hover:bg-neutral-900 text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-all"
             title="Refresh All Data"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={() => { setModalError(''); setShowAddDriverModal(true); }}
-            className="flex items-center gap-1 px-4 py-2.5 bg-sky-500 hover:bg-sky-400 text-black text-xs font-bold rounded-xl transition-all cursor-pointer shadow-lg shadow-sky-550/10"
+            className="flex items-center gap-1 px-4 py-2.5 bg-sky-500 hover:bg-sky-400 text-white dark:text-black text-xs font-bold rounded-xl transition-all cursor-pointer shadow-lg shadow-sky-500/10"
           >
             <Plus className="w-4 h-4" />
             Add Driver
