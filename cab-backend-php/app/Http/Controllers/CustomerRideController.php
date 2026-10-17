@@ -118,7 +118,7 @@ class CustomerRideController extends Controller
         ];
         $matchingDriverTypes = $vehicleTypeMap[$vehicleType] ?? ['sedan', 'suv', 'hatchback'];
 
-        // Check if any available driver exists for the requested vehicle type
+        // Check if any active driver exists for the requested vehicle type
         $availableDriverCount = DriverDetail::where('is_available', true)
             ->whereIn('vehicle_type', $matchingDriverTypes)
             ->count();
@@ -242,7 +242,7 @@ class CustomerRideController extends Controller
         return DB::transaction(function () use ($request, $id) {
             $ride = Ride::where('customer_id', $request->user()->id)->with('payment')->findOrFail($id);
 
-            if (!in_array($ride->status, [Ride::STATUS_REQUESTED, Ride::STATUS_ACCEPTED, Ride::STATUS_WAITING_FOR_CUSTOMER])) {
+            if (!in_array($ride->status, [Ride::STATUS_REQUESTED, Ride::STATUS_ACCEPTED, Ride::STATUS_ARRIVED, Ride::STATUS_WAITING_FOR_CUSTOMER])) {
                 return response()->json([
                     'message' => 'Cannot cancel a ride that is already in progress, completed, or cancelled.'
                 ], 422);

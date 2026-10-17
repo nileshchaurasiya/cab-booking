@@ -84,19 +84,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // Require all vehicle details to access driver portal
+    if (!user.vehicle || !user.vehicleModel || !user.vehiclePlate) {
+        Backend.logout('driver');
+        alert("Access Denied: You cannot enter the driver portal without registered vehicle details. Please register your vehicle first.");
+        window.location.href = 'driver_login.html';
+        return;
+    }
+
     try {
         // Display driver details
         document.getElementById('driver-name-display').textContent = user.name;
-
-        let needsSetup = false;
-        if (!user.vehicle || !user.vehicleModel || !user.vehiclePlate) {
-            needsSetup = true;
-            document.getElementById('driver-vehicle-number-header').textContent = 'Setup Required';
-            document.getElementById('driver-vehicle-display').textContent = 'Setup Required';
-        } else {
-            document.getElementById('driver-vehicle-number-header').textContent = user.vehicle;
-            document.getElementById('driver-vehicle-display').textContent = `${user.vehicleModel} (${window.getCabCategoryDisplayName ? window.getCabCategoryDisplayName(user.cabClass || 'Sedan') : (user.cabClass || 'Sedan')})`;
-        }
+        document.getElementById('driver-vehicle-number-header').textContent = user.vehiclePlate || user.vehicle;
+        document.getElementById('driver-vehicle-display').textContent = `${user.vehicleModel} (${window.getCabCategoryDisplayName ? window.getCabCategoryDisplayName(user.cabClass || 'Sedan') : (user.cabClass || 'Sedan')})`;
 
         // Load stats from Backend
         const earnings = user.earnings || 0;
@@ -121,17 +121,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        if (needsSetup) {
-            await toggleShiftStatus(false);
-            if (user.justSignedUp) {
-                openVehicleModal(false);
-            }
+        if (savedOnlineState) {
+            await toggleShiftStatus(true);
         } else {
-            if (savedOnlineState) {
-                await toggleShiftStatus(true);
-            } else {
-                await toggleShiftStatus(false);
-            }
+            await toggleShiftStatus(false);
         }
 
     } catch (e) {

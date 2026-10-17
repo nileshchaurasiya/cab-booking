@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { Car, Lock, Mail, User as UserIcon, Phone, FileText, Palette, Layers, ChevronRight } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
 export default function Register() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   // Role defaults to 'customer' unless specified as 'driver'
   const roleParam = searchParams.get('role') === 'driver' ? 'driver' : 'customer';
@@ -71,11 +70,12 @@ export default function Register() {
       localStorage.setItem(`${data.user.role}_auth_user`, JSON.stringify(data.user));
 
       if (data.user.role === 'driver') {
-        // Switch to Step 2 for drivers
+        localStorage.setItem('driver_is_online', 'true');
+        // Switch to Step 2 for drivers (vehicle details)
         setStep('vehicle');
       } else {
         // Customers proceed immediately to their portal
-        navigate('/customer');
+        window.location.href = '/customer';
       }
     } catch (err: any) {
       setError(err.message || 'Registration failed. Verify input details.');
@@ -98,17 +98,15 @@ export default function Register() {
       // Refresh /me payload to ensure local profile cache is updated with driver detail
       const meRes = await apiRequest('/me');
       localStorage.setItem('driver_auth_user', JSON.stringify(meRes.user));
+      localStorage.setItem('driver_is_online', 'true');
 
-      navigate('/driver');
+      // Automatically log in and enter driver portal
+      window.location.href = '/driver';
     } catch (err: any) {
       setError(err.message || 'Vehicle registration failed. Verify inputs.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSkipVehicle = () => {
-    navigate('/driver');
   };
 
   return (
@@ -132,7 +130,7 @@ export default function Register() {
 
         {/* Card */}
         <div className="bg-white dark:bg-[#0c0c0e] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-8 shadow-xl dark:shadow-2xl transition-all duration-300">
-          
+
           {error && (
             <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-xs text-center font-medium">
               {error}
@@ -337,12 +335,12 @@ export default function Register() {
                 </button>
               </form>
 
-              <button
+              {/* <button
                 onClick={handleSkipVehicle}
                 className="w-full py-3 text-center text-xs text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-350 cursor-pointer font-bold mt-4 block"
               >
                 Skip vehicle registration for now
-              </button>
+              </button> */}
             </>
           )}
         </div>

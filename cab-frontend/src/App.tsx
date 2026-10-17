@@ -19,6 +19,16 @@ function RoleProtectedRoute({ children, allowedRole }: { children: React.ReactNo
     return <Navigate to="/login" replace />;
   }
 
+  // Prevent drivers without vehicle details from entering dashboard
+  if (allowedRole === 'driver') {
+    const vehicle = user.driver_detail;
+    if (!vehicle || !vehicle.license_number || !vehicle.vehicle_model || !vehicle.vehicle_plate_number) {
+      localStorage.removeItem('driver_auth_token');
+      localStorage.removeItem('driver_auth_user');
+      return <Navigate to="/login" replace />;
+    }
+  }
+
   return <>{children}</>;
 }
 

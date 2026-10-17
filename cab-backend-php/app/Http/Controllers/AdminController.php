@@ -85,6 +85,11 @@ class AdminController extends Controller
         $user->status = $request->status;
         $user->save();
 
+        // If driver is suspended, set offline immediately
+        if ($user->role === 'driver' && $request->status === 'suspended') {
+            \App\Models\DriverDetail::where('user_id', $user->id)->update(['is_available' => false]);
+        }
+
         return response()->json([
             'message' => "User account status updated to: {$request->status}.",
             'user' => $user

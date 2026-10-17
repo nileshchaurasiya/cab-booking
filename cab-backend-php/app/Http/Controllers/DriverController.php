@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Ride;
 use App\Models\DriverDetail;
 use App\Models\Payment;
+use App\Models\Wallet;
+use App\Models\WalletTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -39,16 +41,17 @@ class DriverController extends Controller
      */
     private function getRideVehicleTypeForDriver($driverVehicleType)
     {
-        if (in_array($driverVehicleType, ['sedan', 'suv', 'hatchback'])) {
+        $type = strtolower($driverVehicleType ?? '');
+        if (in_array($type, ['sedan', 'suv', 'hatchback', 'car'])) {
             return 'Car';
         }
-        if ($driverVehicleType === 'bike') {
+        if (in_array($type, ['bike', 'motorcycle'])) {
             return 'Bike';
         }
-        if ($driverVehicleType === 'rickshaw') {
+        if (in_array($type, ['rickshaw', 'auto', 'auto rickshaw'])) {
             return 'Rickshaw';
         }
-        return null;
+        return 'Car';
     }
 
     /**
@@ -157,7 +160,7 @@ class DriverController extends Controller
                 'driver_id' => $request->user()->id,
                 'status' => Ride::STATUS_ACCEPTED,
                 'driver_accepted_at' => now(),
-                'estimated_pickup_at' => now()->addMinutes(rand(1, 3))
+                'estimated_pickup_at' => now()->addSeconds(rand(30, 50))
             ]);
 
             // Set driver status to occupied
@@ -361,7 +364,7 @@ class DriverController extends Controller
     public function cancelRide(Request $request, $id)
     {
         return DB::transaction(function () use ($request, $id) {
-            $ride = Ride::where('driver_id', $request->user()->id)->findOrFail($id);
+            $ride = Ride::with('payment')->where('driver_id', $request->user()->id)->findOrFail($id);
 
             if (in_array($ride->status, [Ride::STATUS_COMPLETED, Ride::STATUS_CANCELLED])) {
                 return response()->json([
@@ -371,6 +374,32 @@ class DriverController extends Controller
 
             $ride->status = Ride::STATUS_CANCELLED;
             $ride->save();
+
+            // Refund customer wallet if payment method was wallet and completed
+            if ($ride->payment && $ride->payment->payment_method === 'wallet' && $ride->payment->payment_status === 'completed') {
+                $wallet = Wallet::lockForUpdate()->firstOrCreate(
+                    ['user_id' => $ride->customer_id],
+                    ['balance' => 0.00]
+                );
+
+                $wallet->balance += (float) $ride->fare;
+                $wallet->save();
+
+                WalletTransaction::create([
+                    'wallet_id' => $wallet->id,
+                    'user_id' => $ride->customer_id,
+                    'type' => 'refund',
+                    'amount' => (float) $ride->fare,
+                    'description' => "Refund for Ride #{$ride->id} (Driver cancelled)",
+                    'reference_id' => (string) $ride->id,
+                ]);
+
+                $ride->payment->payment_status = 'refunded';
+                $ride->payment->save();
+            } elseif ($ride->payment) {
+                $ride->payment->payment_status = 'failed';
+                $ride->payment->save();
+            }
 
             // Mark driver available again
             DriverDetail::where('user_id', $request->user()->id)

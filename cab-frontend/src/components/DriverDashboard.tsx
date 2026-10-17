@@ -3,10 +3,39 @@ import { apiRequest } from '../services/api';
 import { Settings } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
-export default function DriverDashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
+export default function DriverDashboard({ user: initialUser, onLogout }: { user: any; onLogout: () => void }) {
   useEffect(() => { document.title = 'Driver - Indian Cabs'; }, []);
+  const [user, setUser] = useState<any>(() => {
+    return initialUser && initialUser.name ? initialUser : JSON.parse(localStorage.getItem('driver_auth_user') || '{}');
+  });
+
+  const fetchProfile = async () => {
+    try {
+      const res = await apiRequest('/me');
+      if (res && res.user) {
+        setUser(res.user);
+        localStorage.setItem('driver_auth_user', JSON.stringify(res.user));
+        if (res.user.driver_detail) {
+          setDriverRating(parseFloat(res.user.driver_detail.rating || '5.00'));
+          setReviewsCount(res.user.driver_detail.reviews_count || 0);
+          setVehicle({
+            license_number: res.user.driver_detail.license_number || '',
+            vehicle_model: res.user.driver_detail.vehicle_model || '',
+            vehicle_plate_number: res.user.driver_detail.vehicle_plate_number || '',
+            vehicle_color: res.user.driver_detail.vehicle_color || '',
+            vehicle_type: res.user.driver_detail.vehicle_type || 'sedan',
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch driver profile', e);
+    }
+  };
+
   // Offline / Waiting / Request / Active Trip states
-  const [isOnline, setIsOnline] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(() => {
+    return localStorage.getItem('driver_is_online') === 'true';
+  });
   const [activeRequest, setActiveRequest] = useState<any>(null);
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [tripProgress, setTripProgress] = useState(0);
@@ -39,7 +68,6 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
           clearInterval(countdownTimerRef.current);
           countdownTimerRef.current = null;
           setActiveRequest(null);
-          addToast('Ride request expired.', 'error');
           return 0;
         }
         return prev - 1;
@@ -170,6 +198,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
   };
 
   useEffect(() => {
+    fetchProfile();
     if (user.driver_detail) {
       setDriverRating(parseFloat(user.driver_detail.rating || '5.00'));
       setReviewsCount(user.driver_detail.reviews_count || 0);
@@ -181,7 +210,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
         vehicle_type: user.driver_detail.vehicle_type || 'sedan',
       });
     }
-    fetchHistory();
+    fetchHistory(true);
     fetchActiveTrip();
   }, []);
 
@@ -207,8 +236,15 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
           setActiveRequest(requests[0]); // grab first request found nearby
           addToast('New ride request matched in your area!', 'success');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        // If driver was suspended or forbidden, automatically flip them offline
+        if (err.message && (err.message.includes('suspended') || err.message.includes('unauthorized') || err.message.includes('Forbidden'))) {
+          setIsOnline(false);
+          localStorage.setItem('driver_is_online', 'false');
+          setActiveRequest(null);
+          addToast(err.message || 'Your account was suspended. You are now offline.', 'error');
+        }
       }
     }, 4000);
 
@@ -251,6 +287,16 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
     };
   }, []);
 
+  // Periodic background auto-refresh for Driver Dashboard (every 5 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchHistory(false);
+      fetchActiveTrip();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchActiveTrip = async () => {
     try {
       const res = await apiRequest('/driver/rides');
@@ -263,14 +309,20 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
         if (active.status === 'arrived') setTripProgress(60);
         if (active.status === 'waiting_for_customer') setTripProgress(70);
         if (active.status === 'in_progress') setTripProgress(90);
+      } else {
+        if (activeTrip) {
+          setActiveTrip(null);
+          addToast('The customer cancelled this ride.', 'error');
+          fetchHistory(false);
+        }
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const fetchHistory = async () => {
-    setLoadingHistory(true);
+  const fetchHistory = async (showLoading = false) => {
+    if (showLoading) setLoadingHistory(true);
     try {
       const res = await apiRequest('/driver/rides');
       const rides = res.data || [];
@@ -292,11 +344,14 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
         const avg = totalRating / allReviews.length;
         setDriverRating(avg);
         setReviewsCount(allReviews.length);
+      } else {
+        setDriverRating(5.0);
+        setReviewsCount(0);
       }
     } catch (err) {
       console.error(err);
     } finally {
-      setLoadingHistory(false);
+      if (showLoading) setLoadingHistory(false);
     }
   };
 
@@ -313,6 +368,7 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
       });
 
       setIsOnline(nextState);
+      localStorage.setItem('driver_is_online', nextState ? 'true' : 'false');
       if (nextState) {
         addToast('You are now Online. Scanning for customer booking requests.');
       } else {
@@ -1140,7 +1196,10 @@ export default function DriverDashboard({ user, onLogout }: { user: any; onLogou
                 Close
               </button>
               <button
-                onClick={onLogout}
+                onClick={() => {
+                  localStorage.removeItem('driver_is_online');
+                  onLogout();
+                }}
                 className="py-3 px-4 rounded-xl font-bold bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all cursor-pointer text-xs"
               >
                 Log Out

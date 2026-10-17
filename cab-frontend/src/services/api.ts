@@ -76,5 +76,5 @@ export const calculateFare = (vehicleType: string, distance: any, pickup?: strin
   } else if (normalized === 'rickshaw' || normalized === 'auto rickshaw' || normalized === 'auto') {
     rate = 20; // Rickshaw = 20/km
   }
-  return parsedDist * rate;
+  return Math.round(parsedDist * rate * 100) / 100;
 };

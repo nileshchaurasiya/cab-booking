@@ -378,6 +378,12 @@ class MockBackendService {
                     password
                 );
             }
+
+            // Drivers cannot log in without vehicle details
+            if (!driver.vehicle && !driver.vehicleModel && !driver.vehiclePlate) {
+                throw new Error("Access denied. You cannot log in without registered vehicle details. Please register your vehicle first.");
+            }
+
             localStorage.setItem('indiancabs_user_driver', JSON.stringify(driver));
             return driver;
         } else if (resolvedRole === 'admin') {

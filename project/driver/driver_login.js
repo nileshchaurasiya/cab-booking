@@ -54,14 +54,20 @@ function toggleAuthMode(mode) {
 
     const groupName = document.getElementById('group-fullname');
     const groupNumber = document.getElementById('group-number');
+    const groupVehicleModel = document.getElementById('group-vehicle-model');
+    const groupVehiclePlate = document.getElementById('group-vehicle-plate');
+    const groupVehicleClass = document.getElementById('group-vehicle-class');
     const btnSubmit = document.getElementById('btn-auth-submit');
     const switchDesc = document.getElementById('auth-switch-desc');
     const btnToggle = document.getElementById('btn-auth-toggle');
 
     if (mode === 'signup') {
-        // Show registration fields including details but hide vehicle since it will be collected after signup
-        groupName.style.display = 'block';
-        groupNumber.style.display = 'block';
+        // Show all driver registration fields including required vehicle details
+        if (groupName) groupName.style.display = 'block';
+        if (groupNumber) groupNumber.style.display = 'block';
+        if (groupVehicleModel) groupVehicleModel.style.display = 'block';
+        if (groupVehiclePlate) groupVehiclePlate.style.display = 'block';
+        if (groupVehicleClass) groupVehicleClass.style.display = 'block';
 
         btnSubmit.textContent = '✨ Register & Sign In';
 
@@ -69,13 +75,18 @@ function toggleAuthMode(mode) {
         if (btnToggle) btnToggle.textContent = "Sign In";
     } else {
         // Hide registration fields
-        groupName.style.display = 'none';
-        groupNumber.style.display = 'none';
+        if (groupName) groupName.style.display = 'none';
+        if (groupNumber) groupNumber.style.display = 'none';
+        if (groupVehicleModel) groupVehicleModel.style.display = 'none';
+        if (groupVehiclePlate) groupVehiclePlate.style.display = 'none';
+        if (groupVehicleClass) groupVehicleClass.style.display = 'none';
         btnSubmit.textContent = 'Sign In';
 
         // Clear values
-        document.getElementById('auth-fullname').value = '';
-        document.getElementById('auth-number').value = '';
+        const fn = document.getElementById('auth-fullname'); if (fn) fn.value = '';
+        const num = document.getElementById('auth-number'); if (num) num.value = '';
+        const vm = document.getElementById('auth-vehicle-model'); if (vm) vm.value = '';
+        const vp = document.getElementById('auth-vehicle-plate'); if (vp) vp.value = '';
 
         if (switchDesc) switchDesc.textContent = "Don't have an account?";
         if (btnToggle) btnToggle.textContent = "Register";
@@ -87,9 +98,12 @@ async function handleLoginSubmit(event) {
     event.preventDefault();
 
     const emailInput = document.getElementById('auth-email').value.trim();
-    const fullnameInput = document.getElementById('auth-fullname').value.trim();
-    const numberInput = document.getElementById('auth-number').value.trim();
+    const fullnameInput = document.getElementById('auth-fullname') ? document.getElementById('auth-fullname').value.trim() : '';
+    const numberInput = document.getElementById('auth-number') ? document.getElementById('auth-number').value.trim() : '';
     const passwordInput = document.getElementById('auth-password').value.trim();
+    const vehicleModelInput = document.getElementById('auth-vehicle-model') ? document.getElementById('auth-vehicle-model').value.trim() : '';
+    const vehiclePlateInput = document.getElementById('auth-vehicle-plate') ? document.getElementById('auth-vehicle-plate').value.trim().toUpperCase() : '';
+    const vehicleClassInput = document.getElementById('auth-vehicle-class') ? document.getElementById('auth-vehicle-class').value : 'Car';
 
     // 1. Email/Username Validation
     if (!emailInput) {
@@ -105,32 +119,40 @@ async function handleLoginSubmit(event) {
 
     // 2. Signup Mode Specific Validation
     if (authMode === 'signup') {
-        console.log("[Driver Signup] Starting validation with values:", {
-            email: emailInput,
-            fullname: fullnameInput,
-            phone: numberInput
-        });
-
         if (!fullnameInput) {
-            console.warn("[Driver Signup] Missing Full Name");
             showToast("Please enter your Full Name!");
             return;
         }
         if (!/[a-zA-Z]/.test(fullnameInput)) {
-            console.warn("[Driver Signup] Full Name must contain at least one letter");
             showToast("Full Name must contain at least one letter!");
             return;
         }
         if (!numberInput) {
-            console.warn("[Driver Signup] Missing Phone Number");
             showToast("Please enter your Phone Number!");
             return;
         }
         if (numberInput.length !== 10) {
-            console.warn("[Driver Signup] Phone Number is not 10 digits");
-            showToast("Please enter a valid 10-digit number!");
+            showToast("Please enter a valid 10-digit phone number!");
             return;
         }
+
+        // Validate vehicle details
+        if (!vehicleModelInput) {
+            showToast("Please enter your Vehicle Model!");
+            return;
+        }
+        if (!vehiclePlateInput) {
+            showToast("Please enter your Vehicle Plate Number!");
+            return;
+        }
+
+        const formattedPlate = vehiclePlateInput.replace(/[\s-]/g, '').toUpperCase();
+        if (!/^[A-Z0-9]{6,12}$/.test(formattedPlate)) {
+            showToast("Invalid Vehicle Plate Number! E.g. MH12AB1234");
+            return;
+        }
+
+        finalVehicle = `${vehicleModelInput} - ${formattedPlate}`;
     }
 
     // 3. Password Validation
@@ -152,32 +174,56 @@ async function handleLoginSubmit(event) {
         displayName = prefix.charAt(0).toUpperCase() + prefix.slice(1);
     }
 
-    if (authMode === 'signup') {
-        console.log("[Driver Signup] Signup inputs successfully validated. Display name:", displayName);
-    }
-
     // Save session and log in (forces role: 'driver')
-    await loginSuccess(displayName, emailInput, selectedAuthRole, '', finalVehicle, authMode === 'signup');
+    await loginSuccess(displayName, emailInput, selectedAuthRole, '', finalVehicle, vehicleModelInput, vehiclePlateInput, vehicleClassInput, authMode === 'signup');
 }
 
-async function loginSuccess(name, email, role, address = '', vehicle = '', isSignup = false) {
+async function loginSuccess(name, email, role, address = '', vehicle = '', vehicleModel = '', vehiclePlate = '', cabClass = 'Car', isSignup = false) {
     try {
         if (isSignup) {
-            await Backend.register(name, email, 'driver', 'default_password', address, vehicle);
+            const db = Backend.getDb();
+            const emailLower = email.trim().toLowerCase();
+            if (db.drivers.some(d => d.email.toLowerCase() === emailLower)) {
+                throw new Error("Driver account with this email already exists!");
+            }
+            const newDriver = new Driver({
+                name,
+                email: emailLower,
+                address: address || 'Surat, Gujarat',
+                vehicle,
+                vehicleModel,
+                vehiclePlate,
+                cabClass,
+                justSignedUp: false,
+                online: false
+            });
+            db.drivers.push(newDriver);
+            Backend.saveDb(db);
         }
         
         const user = await Backend.login(email, 'default_password', 'driver');
+
+        // Check that driver has complete vehicle details
+        if (!user.vehicle && !user.vehicleModel && !user.vehiclePlate) {
+            Backend.logout('driver');
+            throw new Error("Access denied. You cannot log in without registered vehicle details. Please register your vehicle first.");
+        }
+
         window.location.href = 'driver.html';
     } catch (e) {
         showToast(e.message);
     }
 }
 
-// On page load, check for active session
+// On page load, check for active session with vehicle details
 document.addEventListener('DOMContentLoaded', () => {
     const savedUser = Backend.getCurrentDriver();
     if (savedUser) {
-        window.location.href = 'driver.html';
+        if (savedUser.vehicle || savedUser.vehicleModel || savedUser.vehiclePlate) {
+            window.location.href = 'driver.html';
+        } else {
+            Backend.logout('driver');
+        }
     }
 });
 

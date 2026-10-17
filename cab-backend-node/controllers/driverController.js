@@ -17,16 +17,17 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 const getRideVehicleTypeForDriver = (driverVehicleType) => {
-  if (['sedan', 'suv', 'hatchback'].includes(driverVehicleType)) {
+  const type = (driverVehicleType || '').toLowerCase();
+  if (['sedan', 'suv', 'hatchback', 'car'].includes(type)) {
     return 'Car';
   }
-  if (driverVehicleType === 'bike') {
+  if (['bike', 'motorcycle'].includes(type)) {
     return 'Bike';
   }
-  if (driverVehicleType === 'rickshaw') {
+  if (['rickshaw', 'auto', 'auto rickshaw'].includes(type)) {
     return 'Rickshaw';
   }
-  return null;
+  return 'Car';
 };
 
 const paginate = async (query, model, req, populateOpts = []) => {
@@ -41,16 +42,21 @@ const paginate = async (query, model, req, populateOpts = []) => {
     });
   }
 
-  const data = await execQuery;
-  const total = await model.countDocuments(query);
-  const lastPage = Math.ceil(total / limit) || 1;
+  const [data, total] = await Promise.all([
+    execQuery,
+    model.countDocuments(query)
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
 
   return {
-    current_page: page,
     data,
-    total,
-    per_page: limit,
-    last_page: lastPage
+    meta: {
+      current_page: page,
+      last_page: totalPages,
+      per_page: limit,
+      total
+    }
   };
 };
 
@@ -58,38 +64,27 @@ const updateLocation = async (req, res, next) => {
   try {
     const { latitude, longitude, is_available } = req.body;
 
-    if (latitude === undefined || longitude === undefined || is_available === undefined) {
-      return res.status(422).json({
-        message: 'The given data was invalid.',
-        errors: {
-          latitude: latitude === undefined ? ['The latitude field is required.'] : [],
-          longitude: longitude === undefined ? ['The longitude field is required.'] : [],
-          is_available: is_available === undefined ? ['The is available field is required.'] : []
-        }
-      });
+    const errors = {};
+    if (latitude === undefined || latitude === null) errors.latitude = ['The latitude field is required.'];
+    if (longitude === undefined || longitude === null) errors.longitude = ['The longitude field is required.'];
+    if (is_available === undefined || is_available === null) errors.is_available = ['The is_available field is required.'];
+
+    if (Object.keys(errors).length > 0) {
+      return res.status(422).json({ message: 'The given data was invalid.', errors });
     }
 
-    const driverDetail = await DriverDetail.findOne({ user_id: req.user._id });
-    if (!driverDetail) {
-      return res.status(404).json({ message: 'Driver details not found.' });
-    }
-
-    let isAvail;
-    if (typeof is_available === 'boolean') {
-      isAvail = is_available;
-    } else if (typeof is_available === 'string') {
-      isAvail = is_available.toLowerCase() === 'true' || is_available === '1';
-    } else {
-      isAvail = Boolean(is_available);
-    }
-
-    driverDetail.current_latitude = parseFloat(latitude);
-    driverDetail.current_longitude = parseFloat(longitude);
-    driverDetail.is_available = isAvail;
-    await driverDetail.save();
+    const driverDetail = await DriverDetail.findOneAndUpdate(
+      { user_id: req.user._id },
+      {
+        current_latitude: parseFloat(latitude),
+        current_longitude: parseFloat(longitude),
+        is_available: Boolean(is_available)
+      },
+      { new: true, upsert: true }
+    );
 
     res.status(200).json({
-      message: 'Location and availability updated successfully.',
+      message: 'Location updated successfully.',
       driver_detail: driverDetail
     });
 
@@ -111,14 +106,8 @@ const rideRequests = async (req, res, next) => {
       });
     }
 
-    const lat = driverDetail.current_latitude;
-    const lon = driverDetail.current_longitude;
-
-    if (lat === null || lon === null) {
-      return res.status(422).json({
-        message: 'Update your current location before retrieving ride requests.'
-      });
-    }
+    const lat = driverDetail.current_latitude ?? 12.9716;
+    const lon = driverDetail.current_longitude ?? 77.5946;
 
     // Map driver vehicle type to allowed customer ride vehicle type
     const rideVehicleType = getRideVehicleTypeForDriver(driverDetail.vehicle_type);
@@ -128,11 +117,13 @@ const rideRequests = async (req, res, next) => {
       status: 'requested',
       vehicle_type: rideVehicleType 
     }).populate('customer', 'id name phone');
-    const radius = 15; // 15km
+    const radius = 50; // 50km radius to ensure driver receives requests
 
     const filteredRequests = rides
       .map(ride => {
-        const dist = getDistance(lat, lon, ride.pickup_latitude, ride.pickup_longitude);
+        const dist = (ride.pickup_latitude && ride.pickup_longitude)
+          ? getDistance(lat, lon, ride.pickup_latitude, ride.pickup_longitude)
+          : 0;
         const rideObj = ride.toJSON();
         rideObj.driver_distance_to_pickup = dist;
         return rideObj;
@@ -175,7 +166,7 @@ const acceptRide = async (req, res, next) => {
       });
     }
 
-    const randomMins = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3 mins
+    const randomSecs = Math.floor(Math.random() * 20) + 30; // 30 to 50 seconds
     const now = new Date();
 
     // Atomic update to ensure no two drivers accept the same ride concurrently
@@ -189,7 +180,7 @@ const acceptRide = async (req, res, next) => {
         driver_id: req.user._id,
         status: 'accepted',
         driver_accepted_at: now,
-        estimated_pickup_at: new Date(now.getTime() + randomMins * 60 * 1000)
+        estimated_pickup_at: new Date(now.getTime() + randomSecs * 1000)
       },
       { new: true }
     );
@@ -482,7 +473,7 @@ const cancelRide = async (req, res, next) => {
     const ride = await Ride.findOne({
       _id: req.params.id,
       driver_id: req.user._id
-    });
+    }).populate('payment');
 
     if (!ride) {
       return res.status(404).json({ message: 'Ride not found.' });
@@ -496,6 +487,30 @@ const cancelRide = async (req, res, next) => {
 
     ride.status = 'cancelled';
     await ride.save();
+
+    // Refund wallet if payment method was wallet and completed
+    if (ride.payment && ride.payment.payment_method === 'wallet' && ride.payment.payment_status === 'completed') {
+      let wallet = await Wallet.findOne({ user_id: ride.customer_id });
+      if (wallet) {
+        wallet.balance = parseFloat((wallet.balance + ride.fare).toFixed(2));
+        await wallet.save();
+      }
+
+      await WalletTransaction.create({
+        wallet_id: wallet ? wallet._id : null,
+        user_id: ride.customer_id,
+        type: 'refund',
+        amount: ride.fare,
+        description: `Refund for Ride #${ride._id} (Driver cancelled)`,
+        reference_id: ride._id.toString()
+      });
+
+      ride.payment.payment_status = 'refunded';
+      await ride.payment.save();
+    } else if (ride.payment) {
+      ride.payment.payment_status = 'failed';
+      await ride.payment.save();
+    }
 
     // Mark driver as available again
     await DriverDetail.findOneAndUpdate(

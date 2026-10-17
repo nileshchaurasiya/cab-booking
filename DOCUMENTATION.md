@@ -1470,6 +1470,44 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
+#### Ride Execution & Payout Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer
+    actor Driver
+    participant API as Express API Server
+    participant DB as MongoDB Database
+
+    Customer->>API: Book Ride (status='pending')
+    API->>Driver: Broadcast Request Notification
+    
+    Driver->>API: PUT /api/driver/rides/:id/accept
+    API->>DB: Atomic update status='accepted', driver_id
+    API-->>Customer: Notify Driver Accepted & ETA
+
+    Driver->>API: PUT /api/driver/rides/:id/arrive
+    API->>DB: Update status='waiting_for_customer'
+    API-->>Customer: Driver Arrived at Pickup Point
+
+    Driver->>API: PUT /api/driver/rides/:id/start (OTP Verification)
+    API->>DB: Update status='in_progress', start_time
+    API-->>Customer: Ride Started
+
+    Driver->>API: PUT /api/driver/rides/:id/complete
+    API->>DB: Update status='completed', end_time, compute final_fare
+    
+    Note over API, DB: Financial Settlement & Commission Calculation
+    API->>DB: Deduct Fare from Customer Wallet
+    API->>DB: Credit Driver Wallet (Fare - 20% Admin Commission)
+    API->>DB: Credit Admin Wallet (20% Commission)
+    API->>DB: Record Transaction Logs (type: 'ride_fare', 'commission', 'payout')
+
+    API-->>Customer: Ride Receipt & Rate Driver Dialog
+    API-->>Driver: Earnings Credited Notification
+```
+
 | Status | Description | Triggered By |
 |---|---|---|
 | `requested` | Ride booked, searching for drivers | Customer |
@@ -1537,6 +1575,36 @@ function getDistance(lat1, lon1, lat2, lon2) {
 - Pickup must be within 15 km of driver's current location
 - Results sorted by distance (closest first)
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer
+    participant Client as React App
+    participant API as Express Server
+    participant DB as MongoDB
+
+    Customer->>Client: Input Pickup & Dropoff Coordinates
+    Client->>API: POST /api/rides/estimate-fare
+    API->>API: Compute Haversine Distance & Duration
+    API-->>Client: Return Fare Breakdown (Car: ₹120, Bike: ₹60, Auto: ₹80)
+
+    Customer->>Client: Select Vehicle Class & Click "Book Ride"
+    Client->>API: POST /api/rides/book
+    API->>DB: Query Online Drivers (is_available: true, active)
+    DB-->>API: List of Active Drivers with Coordinates
+    
+    API->>API: Filter Drivers by Radius (<= 15 km) & Vehicle Match
+    API->>API: Sort Drivers by Distance (Nearest First)
+    
+    alt Drivers Found
+        API->>DB: Save Ride (status: "pending", matched_driver_ids)
+        API-->>Client: 201 Created (Ride Pending)
+        API->>DB: Send Notification Alert to Nearest Driver
+    else No Drivers Nearby
+        API-->>Client: 404 Not Found ("No available drivers within 15km")
+    end
+```
+
 **Vehicle Type Mapping (Customer → Driver):**
 
 | Customer Selects | Matched Driver Types |
@@ -1551,14 +1619,41 @@ function getDistance(lat1, lon1, lat2, lon2) {
 
 ### JWT Authentication Flow
 
-```
-1. User logs in with email/password
-2. Server validates credentials
-3. Server generates JWT (30-day expiry) signed with JWT_SECRET
-4. Client stores token in localStorage (role-prefixed)
-5. Subsequent requests include: Authorization: Bearer <token>
-6. Auth middleware verifies token, loads user, checks suspension
-7. restrictTo middleware enforces role-based access
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Customer / Driver / Admin
+    participant Client as React Frontend
+    participant API as Express API Server
+    participant DB as MongoDB Database
+
+    User->>Client: Enter Email & Password
+    Client->>API: POST /api/auth/login
+    API->>DB: findOne({ email })
+    DB-->>API: Return User Document (incl. password hash)
+    
+    alt User Not Found or Password Incorrect
+        API-->>Client: 401 Unauthorized ("Invalid credentials")
+        Client-->>User: Show Error Notification
+    else Account Suspended (is_suspended: true)
+        API-->>Client: 403 Forbidden ("Account suspended")
+        Client-->>User: Show Account Suspension Alert
+    else Credentials Valid
+        API->>API: Generate JWT (signed with JWT_SECRET, 30d expiry)
+        API-->>Client: 200 OK { token, user }
+        Client->>Client: Store Token in localStorage (role-prefixed)
+        Client-->>User: Redirect to Role Dashboard
+    end
+
+    Note over Client, API: Subsequent Authenticated Requests
+    Client->>API: HTTP Header: Authorization: Bearer <token>
+    API->>API: Verify JWT Signature & Expiry
+    API->>DB: Load User Profile & Check Suspension Status
+    alt Token Valid & Active
+        API-->>Client: Execute Endpoint Logic & Return 200 OK
+    else Token Invalid / Expired
+        API-->>Client: 401 Unauthorized
+    end
 ```
 
 ### Middleware Chain

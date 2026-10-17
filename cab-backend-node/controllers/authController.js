@@ -141,6 +141,16 @@ const login = async (req, res, next) => {
       });
     }
 
+    // Drivers must have complete vehicle details to log in
+    if (user.role === 'driver') {
+      const driverDetail = user.driver_detail;
+      if (!driverDetail || !driverDetail.license_number || !driverDetail.vehicle_model || !driverDetail.vehicle_plate_number) {
+        return res.status(403).json({
+          message: 'Access denied. You cannot log in without registered vehicle and license details. Please register your vehicle first.'
+        });
+      }
+    }
+
     const token = generateToken(user);
 
     res.status(200).json({

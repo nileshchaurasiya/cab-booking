@@ -134,7 +134,7 @@ const store = async (req, res, next) => {
 
     const matchingDriverTypes = vehicleTypeMap[normalizedVehicleType] || ['sedan', 'suv', 'hatchback'];
 
-    // Check if any available driver exists for the requested vehicle type
+    // Check if any active driver exists for the requested vehicle type
     const availableDriverCount = await DriverDetail.countDocuments({
       is_available: true,
       vehicle_type: { $in: matchingDriverTypes }
@@ -307,7 +307,7 @@ const cancel = async (req, res, next) => {
       return res.status(404).json({ message: 'Ride not found.' });
     }
 
-    if (!['requested', 'accepted', 'waiting_for_customer'].includes(ride.status)) {
+    if (!['requested', 'accepted', 'arrived', 'waiting_for_customer'].includes(ride.status)) {
       return res.status(422).json({
         message: 'Cannot cancel a ride that is already in progress, completed, or cancelled.'
       });

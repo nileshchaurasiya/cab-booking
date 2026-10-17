@@ -87,6 +87,16 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // Drivers must have vehicle details to log in
+        if ($user->role === 'driver') {
+            $driverDetail = $user->driverDetail;
+            if (!$driverDetail || !$driverDetail->license_number || !$driverDetail->vehicle_model || !$driverDetail->vehicle_plate_number) {
+                return response()->json([
+                    'message' => 'Access denied. You cannot log in without registered vehicle and license details. Please register your vehicle first.'
+                ], 403);
+            }
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

@@ -31,6 +31,13 @@ export default function Login() {
         throw new Error(`Unauthorized. This account is registered as a ${user.role}.`);
       }
 
+      if (user.role === 'driver') {
+        const vehicle = user.driver_detail;
+        if (!vehicle || !vehicle.license_number || !vehicle.vehicle_model || !vehicle.vehicle_plate_number) {
+          throw new Error('You cannot log in without vehicle details. Please register your vehicle first.');
+        }
+      }
+
       localStorage.setItem(`${user.role}_auth_token`, data.access_token);
       localStorage.setItem(`${user.role}_auth_user`, JSON.stringify(user));
       navigate(`/${user.role}`);

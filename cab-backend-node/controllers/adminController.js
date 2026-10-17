@@ -36,11 +36,9 @@ const dashboard = async (req, res, next) => {
 
     const totalCompletedRides = await Ride.countDocuments({ status: 'completed' });
     const totalUsers = await User.countDocuments();
-    // Find active drivers whose user status is not suspended AND who sent a heartbeat recently (within 20s)
-    const heartbeatThreshold = new Date(Date.now() - 20 * 1000); // 20 seconds ago
+    // Find active drivers whose user status is not suspended and is_available is true
     const activeDriversDetails = await DriverDetail.find({
-      is_available: true,
-      updatedAt: { $gte: heartbeatThreshold }
+      is_available: true
     }).populate('user_id');
     const activeDrivers = activeDriversDetails.filter(d => d.user_id && d.user_id.status !== 'suspended').length;
 
@@ -115,6 +113,14 @@ const updateUserStatus = async (req, res, next) => {
 
     user.status = status;
     await user.save();
+
+    // If driver is suspended, automatically force them offline in database
+    if (user.role === 'driver' && status === 'suspended') {
+      await DriverDetail.findOneAndUpdate(
+        { user_id: user._id },
+        { is_available: false }
+      );
+    }
 
     res.status(200).json({
       message: `User account status updated to: ${status}.`,

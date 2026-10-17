@@ -76,6 +76,41 @@
                     </div>
                 </div>
 
+                <!-- Vehicle Model (Only for Signup) -->
+                <div id="group-vehicle-model" style="display: none;">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-500">
+                            🚗
+                        </div>
+                        <input type="text" id="auth-vehicle-model" placeholder="Vehicle Model (e.g. Swift, Innova)"
+                            class="block w-full pl-11 pr-4 py-3.5 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all">
+                    </div>
+                </div>
+
+                <!-- Vehicle Plate (Only for Signup) -->
+                <div id="group-vehicle-plate" style="display: none;">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-500">
+                            🔢
+                        </div>
+                        <input type="text" id="auth-vehicle-plate" placeholder="Plate Number (e.g. MH12AB1234)"
+                            oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')"
+                            class="block w-full pl-11 pr-4 py-3.5 bg-black border border-neutral-800 rounded-2xl text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all uppercase">
+                    </div>
+                </div>
+
+                <!-- Cab Category (Only for Signup) -->
+                <div id="group-vehicle-class" style="display: none;">
+                    <div class="relative">
+                        <select id="auth-vehicle-class"
+                            class="block w-full px-4 py-3.5 bg-black border border-neutral-800 rounded-2xl text-neutral-100 text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all appearance-none cursor-pointer">
+                            <option value="Car">🚗 Car</option>
+                            <option value="Auto Rickshaw">🛺 Auto Rickshaw</option>
+                            <option value="Bike">🏍️ Bike</option>
+                        </select>
+                    </div>
+                </div>
+
 
 
 

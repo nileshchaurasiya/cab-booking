@@ -355,7 +355,8 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                   <tr className="border-b border-slate-100 dark:border-neutral-900 text-slate-400 dark:text-slate-550 font-bold pb-2">
                     <th className="pb-3 pr-2">Driver</th>
                     <th className="pb-3 pr-2">Vehicle</th>
-                    <th className="pb-3 pr-2">Status</th>
+                    <th className="pb-3 pr-2">Shift Status</th>
+                    <th className="pb-3 pr-2">Account</th>
                     <th className="pb-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -371,12 +372,21 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                       <td className="py-3.5 pr-2">
                         {drv.driver_detail ? (
                           <div>
-                            <span className="block font-medium">{drv.driver_detail.vehicle_model}</span>
+                            <span className="block font-medium">{drv.driver_detail.vehicle_model} ({drv.driver_detail.vehicle_type || 'car'})</span>
                             <span className="text-[10px] text-neutral-500 font-mono uppercase">{drv.driver_detail.vehicle_plate_number}</span>
                           </div>
                         ) : (
                           <span className="text-neutral-500 italic">No details set</span>
                         )}
+                      </td>
+                      <td className="py-3.5 pr-2">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${drv.driver_detail?.is_available
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                          }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${drv.driver_detail?.is_available ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`}></span>
+                          {drv.driver_detail?.is_available ? 'Online' : 'Offline'}
+                        </span>
                       </td>
                       <td className="py-3.5 pr-2">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${drv.status === 'suspended'
