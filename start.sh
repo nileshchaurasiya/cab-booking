@@ -53,10 +53,15 @@ if [ "$BACKEND_CHOICE" = "php" ] || [ "$BACKEND_CHOICE" = "laravel" ] || [ "$BAC
         sleep 2
     fi
 
-    cd cab-backend-php || { echo -e "${RED}Failed to enter cab-backend-php directory${NC}"; exit 1; }
+    PHP_DIR="cab-backend-php"
+    if [ ! -d "$PHP_DIR" ] && [ -d "../cab-booking-php/cab-backend-php" ]; then
+        PHP_DIR="../cab-booking-php/cab-backend-php"
+    fi
+
+    cd "$PHP_DIR" || { echo -e "${RED}Failed to enter cab-backend-php directory${NC}"; exit 1; }
     php artisan serve --host=0.0.0.0 --port=8000 &
     BACKEND_PID=$!
-    cd ..
+    cd - >/dev/null 2>&1
     BACKEND_NAME="Laravel PHP (MySQL on Port 3306)"
 else
     echo -e "${BLUE}[1/2] Starting Node.js Backend (MongoDB)...${NC}"
