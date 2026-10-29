@@ -40,6 +40,25 @@ const rideSchema = new mongoose.Schema({
     enum: ['requested', 'accepted', 'arrived', 'waiting_for_customer', 'in_progress', 'completed', 'cancelled'],
     default: 'requested'
   },
+  cancellation_reason: {
+    type: String,
+    maxlength: 200,
+    default: null
+  },
+  cancelled_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  cancelled_by_role: {
+    type: String,
+    enum: ['customer', 'driver'],
+    default: null
+  },
+  cancelled_at: {
+    type: Date,
+    default: null
+  },
   pickup_waiting_started_at: {
     type: Date,
     default: null

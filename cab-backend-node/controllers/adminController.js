@@ -30,24 +30,46 @@ const paginate = async (query, model, req, populateOpts = []) => {
 
 const dashboard = async (req, res, next) => {
   try {
-    // Sum completed commissions
-    const completedPayments = await Payment.find({ payment_status: 'completed' });
+    // Sum completed commissions only for rides that actually exist in the database
+    const completedRides = await Ride.find({ status: 'completed' }).select('_id');
+    const completedRideIds = completedRides.map(r => r._id);
+
+    const completedPayments = await Payment.find({
+      ride_id: { $in: completedRideIds },
+      payment_status: 'completed'
+    });
     const totalEarnings = completedPayments.reduce((sum, p) => sum + (p.admin_commission || 0), 0);
 
     const totalCompletedRides = await Ride.countDocuments({ status: 'completed' });
     const totalUsers = await User.countDocuments();
-    // Find active drivers whose user status is not suspended and is_available is true
-    const activeDriversDetails = await DriverDetail.find({
+
+    // Find active drivers: either available OR currently on an active trip
+    const activeDriverUsers = await User.find({ role: 'driver', status: { $ne: 'suspended' } }).select('_id');
+    const activeDriverUserIds = activeDriverUsers.map(u => u._id);
+
+    // Drivers currently on a trip
+    const busyDriverIds = await Ride.distinct('driver_id', {
+      driver_id: { $in: activeDriverUserIds },
+      status: { $in: ['accepted', 'arrived', 'waiting_for_customer', 'in_progress'] }
+    });
+
+    // Drivers available
+    const availableDriverUserIds = await DriverDetail.distinct('user_id', {
+      user_id: { $in: activeDriverUserIds },
       is_available: true
-    }).populate('user_id');
-    const activeDrivers = activeDriversDetails.filter(d => d.user_id && d.user_id.status !== 'suspended').length;
+    });
+
+    const allOnlineDrivers = new Set([
+      ...busyDriverIds.map(id => id.toString()),
+      ...availableDriverUserIds.map(id => id.toString())
+    ]);
 
     res.status(200).json({
       stats: {
         total_earnings: Math.round(totalEarnings * 100) / 100,
         total_completed_rides: totalCompletedRides,
         total_users: totalUsers,
-        active_drivers_online: activeDrivers
+        active_drivers_online: allOnlineDrivers.size
       }
     });
 
@@ -80,6 +102,42 @@ const users = async (req, res, next) => {
     }
 
     const paginatedUsers = await paginate(query, User, req, ['driver_detail']);
+
+    // If fetching drivers, attach active ride and true shift status
+    if (role === 'driver' || !role) {
+      const driverUserIds = paginatedUsers.data
+        .filter(u => u.role === 'driver')
+        .map(u => u._id);
+
+      const activeRides = await Ride.find({
+        driver_id: { $in: driverUserIds },
+        status: { $in: ['accepted', 'arrived', 'waiting_for_customer', 'in_progress'] }
+      }).select('driver_id status pickup_address dropoff_address fare id');
+
+      const activeRideByDriver = {};
+      activeRides.forEach(r => {
+        if (r.driver_id) {
+          activeRideByDriver[r.driver_id.toString()] = r;
+        }
+      });
+
+      paginatedUsers.data = paginatedUsers.data.map(u => {
+        const userObj = u.toJSON ? u.toJSON() : u;
+        if (userObj.role === 'driver') {
+          const activeTrip = activeRideByDriver[userObj.id];
+          userObj.active_trip = activeTrip || null;
+          if (activeTrip) {
+            userObj.shift_status = 'on_trip';
+          } else if (userObj.driver_detail?.is_available) {
+            userObj.shift_status = 'available';
+          } else {
+            userObj.shift_status = 'offline';
+          }
+        }
+        return userObj;
+      });
+    }
+
     res.status(200).json(paginatedUsers);
 
   } catch (err) {

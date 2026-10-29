@@ -10,9 +10,15 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   } else if (path.startsWith('/admin') || endpoint.includes('/admin')) {
     token = localStorage.getItem('admin_auth_token');
   } else {
-    token = localStorage.getItem('customer_auth_token') || 
-            localStorage.getItem('driver_auth_token') || 
-            localStorage.getItem('admin_auth_token');
+    if (window.location.search.includes('role=driver')) {
+      token = localStorage.getItem('driver_auth_token') || 
+              localStorage.getItem('customer_auth_token') || 
+              localStorage.getItem('admin_auth_token');
+    } else {
+      token = localStorage.getItem('customer_auth_token') || 
+              localStorage.getItem('driver_auth_token') || 
+              localStorage.getItem('admin_auth_token');
+    }
   }
   
   const headers = new Headers(options.headers || {});
@@ -20,7 +26,7 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   if (!(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
-  if (token) {
+  if (!headers.has('Authorization') && token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 

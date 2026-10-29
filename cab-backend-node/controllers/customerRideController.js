@@ -42,6 +42,31 @@ const paginate = async (query, model, req, populateOpts = []) => {
   };
 };
 
+const driverAvailability = async (req, res, next) => {
+  try {
+    const activeDriverUsers = await User.find({ role: 'driver', status: { $ne: 'suspended' } }).select('_id');
+    const activeDriverUserIds = activeDriverUsers.map(u => u._id);
+
+    const availableDrivers = await DriverDetail.find({
+      user_id: { $in: activeDriverUserIds },
+      is_available: true
+    }).select('vehicle_type rating');
+
+    const byType = {
+      Car: availableDrivers.filter(d => ['sedan', 'suv', 'hatchback'].includes(d.vehicle_type)).length,
+      Rickshaw: availableDrivers.filter(d => d.vehicle_type === 'rickshaw').length,
+      Bike: availableDrivers.filter(d => d.vehicle_type === 'bike').length
+    };
+
+    res.status(200).json({
+      total_available: availableDrivers.length,
+      by_type: byType
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const nearbyDrivers = async (req, res, next) => {
   try {
     const { latitude, longitude, radius } = req.query;
@@ -60,8 +85,14 @@ const nearbyDrivers = async (req, res, next) => {
     const lon = parseFloat(longitude);
     const rad = parseFloat(radius) || 10; // Default 10km
 
-    // Get all online drivers
-    const drivers = await DriverDetail.find({ is_available: true }).populate('user', 'id name phone');
+    // Get all online real drivers
+    const activeDriverUsers = await User.find({ role: 'driver', status: { $ne: 'suspended' } }).select('_id');
+    const activeDriverUserIds = activeDriverUsers.map(u => u._id);
+
+    const drivers = await DriverDetail.find({
+      user_id: { $in: activeDriverUserIds },
+      is_available: true
+    }).populate('user', 'id name phone');
 
     // Filter by Haversine formula
     const filteredDrivers = drivers
@@ -134,15 +165,23 @@ const store = async (req, res, next) => {
 
     const matchingDriverTypes = vehicleTypeMap[normalizedVehicleType] || ['sedan', 'suv', 'hatchback'];
 
+    // Get all real active non-suspended driver user IDs
+    const activeDriverUsers = await User.find({ role: 'driver', status: { $ne: 'suspended' } }).select('_id');
+    const activeDriverUserIds = activeDriverUsers.map(u => u._id);
+
     // Check if any active driver exists for the requested vehicle type
     const availableDriverCount = await DriverDetail.countDocuments({
+      user_id: { $in: activeDriverUserIds },
       is_available: true,
       vehicle_type: { $in: matchingDriverTypes }
     });
 
     if (availableDriverCount === 0) {
       // Find which vehicle types actually have available drivers
-      const allAvailableDrivers = await DriverDetail.find({ is_available: true }).select('vehicle_type');
+      const allAvailableDrivers = await DriverDetail.find({
+        user_id: { $in: activeDriverUserIds },
+        is_available: true
+      }).select('vehicle_type');
       const activeTypes = new Set(allAvailableDrivers.map(d => d.vehicle_type));
 
       // Reverse map driver types back to customer-friendly names
@@ -155,7 +194,7 @@ const store = async (req, res, next) => {
       if (availableForCustomer.length > 0) {
         suggestion = ` Currently available: ${availableForCustomer.join(', ')}.`;
       } else {
-        suggestion = ' No drivers are currently active. Please try again later.';
+        suggestion = ' Driver is currently offline. Please try again later.';
       }
 
       return res.status(422).json({
@@ -313,7 +352,29 @@ const cancel = async (req, res, next) => {
       });
     }
 
+    const { reason, cancelled_by } = req.body;
+    const allowedReasons = [
+      'Booked by mistake',
+      'Driver is taking too long',
+      'Changed my plans',
+      'Wrong pickup or drop location',
+      'Fare is too high',
+      'Found another ride',
+      'Other'
+    ];
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      return res.status(400).json({ message: 'Cancellation reason is required.' });
+    }
+    const trimmed = reason.trim();
+    if (!allowedReasons.includes(trimmed) && trimmed.length > 200) {
+      return res.status(400).json({ message: 'Invalid cancellation reason.' });
+    }
+
     ride.status = 'cancelled';
+    ride.cancellation_reason = trimmed;
+    ride.cancelled_by = req.user._id;
+    ride.cancelled_by_role = cancelled_by || 'customer';
+    ride.cancelled_at = new Date();
     await ride.save();
 
     // Refund wallet if payment method was wallet and completed
@@ -426,6 +487,7 @@ const rate = async (req, res, next) => {
 };
 
 module.exports = {
+  driverAvailability,
   nearbyDrivers,
   store,
   index,

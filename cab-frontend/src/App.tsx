@@ -39,6 +39,10 @@ const handleLogout = (role: 'customer' | 'driver' | 'admin') => {
   }
   localStorage.removeItem(`${role}_auth_token`);
   localStorage.removeItem(`${role}_auth_user`);
+  localStorage.removeItem(`${role}_user`);
+  if (role === 'driver') {
+    localStorage.removeItem('driver_is_online');
+  }
   window.location.href = '/login';
 };
 

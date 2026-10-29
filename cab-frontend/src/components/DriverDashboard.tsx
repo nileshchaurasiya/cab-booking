@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
-import { Settings } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import { CancellationModal } from './CancellationModal';
 
 export default function DriverDashboard({ user: initialUser, onLogout }: { user: any; onLogout: () => void }) {
   useEffect(() => { document.title = 'Driver - Indian Cabs'; }, []);
@@ -176,6 +177,8 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCancellingTrip, setIsCancellingTrip] = useState(false);
 
   // Vehicle states
   const [vehicle, setVehicle] = useState({
@@ -430,15 +433,31 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
     }
   };
 
-  const handleCancelTrip = async () => {
+  const handleCancelTrip = () => {
     if (!activeTrip) return;
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancellation = async (reason: string) => {
+    if (!activeTrip) return;
+    setIsCancellingTrip(true);
     try {
-      await apiRequest(`/driver/rides/${activeTrip.id}/cancel`, { method: 'POST' });
-      addToast('Trip cancelled successfully.', 'success');
+      const res = await apiRequest(`/driver/rides/${activeTrip.id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ride_id: activeTrip.id,
+          reason,
+          cancelled_by: 'driver'
+        })
+      });
+      addToast(res.message || 'Trip cancelled successfully.', 'success');
+      setShowCancelModal(false);
       setActiveTrip(null);
       fetchHistory();
     } catch (err: any) {
       addToast(err.message || 'Cancellation failed.', 'error');
+    } finally {
+      setIsCancellingTrip(false);
     }
   };
 
@@ -581,9 +600,17 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
               <ThemeToggle />
               <button
                 onClick={() => setShowProfileModal(true)}
+                title="Profile & Settings"
                 className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-200 dark:hover:bg-neutral-800 hover:scale-105 active:scale-95 text-slate-650 dark:text-neutral-400 focus:outline-none"
               >
                 <Settings className="w-5 h-5 transition-transform duration-500 hover:rotate-90" />
+              </button>
+              <button
+                onClick={onLogout}
+                title="Logout"
+                className="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 focus:outline-none"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1273,6 +1300,15 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
           </div>
         </div>
       )}
+
+      {/* CANCELLATION REASON MODAL */}
+      <CancellationModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleConfirmCancellation}
+        role="driver"
+        isLoading={isCancellingTrip}
+      />
 
     </div>
   );

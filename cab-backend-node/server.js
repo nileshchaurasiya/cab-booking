@@ -52,6 +52,7 @@ app.post('/api/logout', authController.logout);
 app.get('/api/me', authController.me);
 
 // Customer-only Routes
+app.get('/api/customer/drivers/availability', restrictTo('customer'), customerRideController.driverAvailability);
 app.get('/api/customer/drivers/nearby', restrictTo('customer'), customerRideController.nearbyDrivers);
 app.post('/api/customer/rides', restrictTo('customer'), customerRideController.store);
 app.get('/api/customer/rides', restrictTo('customer'), customerRideController.index);

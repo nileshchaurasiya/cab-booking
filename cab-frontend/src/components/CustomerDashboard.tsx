@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest, calculateFare } from '../services/api';
-import { Share2, Settings } from 'lucide-react';
+import { Share2, Settings, LogOut } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import { CancellationModal } from './CancellationModal';
 
 export default function CustomerDashboard({ user: initialUser, onLogout }: { user: any, onLogout: () => void }) {
   useEffect(() => { document.title = 'Customer - Indian Cabs'; }, []);
@@ -30,6 +31,8 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCancellingRide, setIsCancellingRide] = useState(false);
 
   // Recharge inputs
   const [rechargeAmount, setRechargeAmount] = useState('500');
@@ -51,6 +54,10 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
   const [bookingRide, setBookingRide] = useState(false);
   const [previewDistance, setPreviewDistance] = useState(0);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [driverAvailability, setDriverAvailability] = useState<{
+    total_available: number;
+    by_type: { Car: number; Rickshaw: number; Bike: number };
+  } | null>(null);
 
   // Active Ride tracking
   const [activeRide, setActiveRide] = useState<any>(null);
@@ -177,19 +184,27 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
   // Switch/sync state whenever active user changes
   useEffect(() => {
     fetchProfile();
-  }, []);
-
-  useEffect(() => {
     if (user?.id) {
       const cachedBal = parseFloat(localStorage.getItem(`customer_wallet_balance_${user.id}`) || '0.00');
       const cachedTx = JSON.parse(localStorage.getItem(`customer_wallet_transactions_${user.id}`) || '[]');
       setWalletBalance(cachedBal);
       setWalletTransactions(cachedTx);
-      fetchWallet();
-      fetchHistory();
-      fetchActiveRide();
     }
+    // Fast parallel fetch for all dashboard data
+    Promise.all([
+      fetchWallet(),
+      fetchRides(true),
+      fetchDriverAvailability()
+    ]);
   }, [user?.id]);
+
+  // Periodically check driver availability every 10s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchDriverAvailability();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Sync isolated wallet balance to localStorage
   useEffect(() => {
@@ -233,10 +248,22 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
     }
   }, [pickup, dropoff]);
 
-  const fetchActiveRide = async () => {
+  const fetchDriverAvailability = async () => {
+    try {
+      const res = await apiRequest('/customer/drivers/availability');
+      setDriverAvailability(res);
+    } catch (err) {
+      console.error('Failed to fetch driver availability', err);
+    }
+  };
+
+  const fetchRides = async (showLoader = false) => {
+    if (showLoader) setLoadingHistory(true);
     try {
       const res = await apiRequest('/customer/rides');
       const rides = res.data || [];
+      setHistoryRides(rides);
+
       const active = rides.find((r: any) => {
         if (['requested', 'accepted', 'arrived', 'waiting_for_customer', 'in_progress'].includes(r.status)) {
           return true;
@@ -247,6 +274,7 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
         }
         return false;
       });
+
       if (active) {
         setActiveRide(active);
         // Simulate progress bar percentage depending on status
@@ -259,27 +287,19 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
         // If there was an active ride and now there isn't, the driver may have cancelled
         if (activeRide) {
           fetchWallet(); // Refresh wallet to pick up refund
-          fetchHistory();
           addToast('Your ride was cancelled by the driver. Wallet refunded.', 'error');
         }
         setActiveRide(null);
       }
     } catch (err: any) {
       console.error(err);
+    } finally {
+      if (showLoader) setLoadingHistory(false);
     }
   };
 
-  const fetchHistory = async () => {
-    setLoadingHistory(true);
-    try {
-      const res = await apiRequest('/customer/rides');
-      setHistoryRides(res.data || []);
-    } catch (err: any) {
-      console.error(err);
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
+  const fetchActiveRide = () => fetchRides(false);
+  const fetchHistory = () => fetchRides(false);
 
   const handleBookSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,24 +359,35 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
     }
   };
 
-  const handleCancelCurrentRide = async () => {
+  const handleCancelCurrentRide = () => {
     if (!activeRide) return;
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancellation = async (reason: string) => {
+    if (!activeRide) return;
+    setIsCancellingRide(true);
     try {
-      await apiRequest(`/customer/rides/${activeRide.id}/cancel`, { method: 'POST' });
-      addToast('Ride request cancelled.');
+      const res = await apiRequest(`/customer/rides/${activeRide.id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ride_id: activeRide.id,
+          reason,
+          cancelled_by: 'customer'
+        })
+      });
+      addToast(res.message || 'Ride request cancelled.');
+      setShowCancelModal(false);
 
-      // Refresh isolated wallet and transaction log
-      fetchWallet();
-
+      // Instantly update state without reloading
       setActiveRide(null);
-      fetchHistory();
-
-      // Refresh page to clean state
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      fetchWallet();
+      fetchRides();
+      fetchDriverAvailability();
     } catch (err: any) {
       addToast(err.message || 'Failed to cancel ride.', 'error');
+    } finally {
+      setIsCancellingRide(false);
     }
   };
 
@@ -482,9 +513,17 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
               <ThemeToggle />
               <button
                 onClick={() => setShowProfileModal(true)}
+                title="Profile & Settings"
                 className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-200 dark:hover:bg-neutral-800 hover:scale-105 active:scale-95 text-slate-600 dark:text-neutral-400 focus:outline-none"
               >
                 <Settings className="w-5 h-5 transition-transform duration-500 hover:rotate-90" />
+              </button>
+              <button
+                onClick={onLogout}
+                title="Logout"
+                className="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 focus:outline-none"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -543,7 +582,20 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
 
                   {/* Vehicle Type selector */}
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Select Vehicle Class</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Select Vehicle Class</label>
+                      {driverAvailability && (
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                          driverAvailability.total_available > 0
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
+                        }`}>
+                          {driverAvailability.total_available > 0
+                            ? `● ${driverAvailability.total_available} Driver${driverAvailability.total_available > 1 ? 's' : ''} Online`
+                            : '● All Drivers Offline'}
+                        </span>
+                      )}
+                    </div>
                     <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
 
                       {/* Car Class */}
@@ -558,6 +610,15 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🚗</span>
                         <span className="text-xs font-bold text-slate-800 dark:text-white block">Car</span>
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹30/km</span>
+                        {driverAvailability && (
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-1.5 ${
+                            (driverAvailability.by_type.Car || 0) > 0
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
+                          }`}>
+                            {(driverAvailability.by_type.Car || 0) > 0 ? `${driverAvailability.by_type.Car} Online` : 'Offline'}
+                          </span>
+                        )}
                       </button>
 
                       {/* Rickshaw Class */}
@@ -572,6 +633,15 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🛺</span>
                         <span className="text-xs font-bold text-slate-800 dark:text-white block">Rickshaw</span>
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹20/km</span>
+                        {driverAvailability && (
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-1.5 ${
+                            (driverAvailability.by_type.Rickshaw || 0) > 0
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
+                          }`}>
+                            {(driverAvailability.by_type.Rickshaw || 0) > 0 ? `${driverAvailability.by_type.Rickshaw} Online` : 'Offline'}
+                          </span>
+                        )}
                       </button>
 
                       {/* Bike Class */}
@@ -586,6 +656,15 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🏍️</span>
                         <span className="text-xs font-bold text-slate-800 dark:text-white block">Bike</span>
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹10/km</span>
+                        {driverAvailability && (
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-1.5 ${
+                            (driverAvailability.by_type.Bike || 0) > 0
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
+                          }`}>
+                            {(driverAvailability.by_type.Bike || 0) > 0 ? `${driverAvailability.by_type.Bike} Online` : 'Offline'}
+                          </span>
+                        )}
                       </button>
 
                     </div>
@@ -639,13 +718,53 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                     </div>
                   )}
 
+                  {/* All Drivers Offline Banner */}
+                  {driverAvailability && driverAvailability.total_available === 0 && (
+                    <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-xs mt-3">
+                      <span className="text-xl shrink-0">🚫</span>
+                      <div>
+                        <strong className="block font-bold">Driver is Not Available</strong>
+                        <span className="text-[11px] opacity-90 leading-relaxed block mt-0.5">
+                          All drivers are currently offline. Bookings cannot be requested at this time.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Vehicle Offline Banner */}
+                  {driverAvailability && driverAvailability.total_available > 0 && selectedCab && (driverAvailability.by_type[selectedCab.name as keyof typeof driverAvailability.by_type] || 0) === 0 && (
+                    <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs mt-3">
+                      <span className="text-xl shrink-0">⚠️</span>
+                      <div>
+                        <strong className="block font-bold">{selectedCab.name} Driver is Not Available</strong>
+                        <span className="text-[11px] opacity-90 leading-relaxed block mt-0.5">
+                          No {selectedCab.name} drivers are active right now. Please select an available vehicle class above.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Book Button */}
                   <button
                     type="submit"
-                    disabled={bookingRide}
-                    className="w-full py-3.5 px-4 rounded-2xl font-bold bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-4"
+                    disabled={
+                      bookingRide ||
+                      !selectedCab ||
+                      (driverAvailability !== null && selectedCab && (driverAvailability.by_type[selectedCab.name as keyof typeof driverAvailability.by_type] || 0) === 0)
+                    }
+                    className={`w-full py-3.5 px-4 rounded-2xl font-bold shadow-lg transition-all duration-200 mt-4 ${
+                      driverAvailability !== null && selectedCab && (driverAvailability.by_type[selectedCab.name as keyof typeof driverAvailability.by_type] || 0) === 0
+                        ? 'bg-rose-500/15 text-rose-500 dark:text-rose-400 border border-rose-500/30 cursor-not-allowed'
+                        : !selectedCab
+                          ? 'bg-slate-200 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
+                          : 'bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black hover:-translate-y-0.5 cursor-pointer'
+                    }`}
                   >
-                    {bookingRide ? 'Requesting Ride...' : '🚕 Book Cab Now'}
+                    {bookingRide
+                      ? 'Requesting Ride...'
+                      : driverAvailability !== null && selectedCab && (driverAvailability.by_type[selectedCab.name as keyof typeof driverAvailability.by_type] || 0) === 0
+                        ? `🚫 ${selectedCab.name} Driver is Not Available (Offline)`
+                        : '🚕 Book Cab Now'}
                   </button>
                 </form>
               </div>
@@ -739,7 +858,7 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                           setReviewSubmitted(false);
                           setActiveRide(null);
                           setFeedbackComment('');
-                          window.location.reload();
+                          fetchRides();
                         }}
                         className="w-full py-2.5 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-black cursor-pointer text-xs"
                       >
@@ -815,10 +934,33 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                   </div>
 
                   {activeRide.status === 'requested' && !activeRide.driver && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl p-3.5 text-xs flex items-center gap-2.5">
-                      <span className="text-base">⚠️</span>
-                      <span>No driver has accepted your request yet. Searching for active drivers in your area.</span>
-                    </div>
+                    driverAvailability && (driverAvailability.by_type[activeRide.vehicle_type as keyof typeof driverAvailability.by_type] || 0) === 0 ? (
+                      <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 rounded-2xl p-4 text-xs space-y-2.5">
+                        <div className="flex items-start gap-2.5">
+                          <span className="text-xl shrink-0">⚠️</span>
+                          <div>
+                            <strong className="block font-bold text-sm text-rose-600 dark:text-rose-400">Driver is Not Available</strong>
+                            <span className="text-[11px] opacity-90 leading-relaxed block mt-0.5">
+                              All {activeRide.vehicle_type || 'cab'} drivers are currently offline. No driver can accept your request right now.
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={handleCancelCurrentRide}
+                            className="px-4 py-2 rounded-xl font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer text-xs transition-colors shadow-sm"
+                          >
+                            Cancel Ride & Refund ₹{activeRide.fare}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl p-3.5 text-xs flex items-center gap-2.5">
+                        <span className="text-base">⚠️</span>
+                        <span>No driver has accepted your request yet. Searching for active drivers in your area.</span>
+                      </div>
+                    )
                   )}
 
                   {/* Route & Fare Card for Customer */}
@@ -1256,6 +1398,15 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
           </div>
         </div>
       )}
+
+      {/* CANCELLATION REASON MODAL */}
+      <CancellationModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleConfirmCancellation}
+        role="customer"
+        isLoading={isCancellingRide}
+      />
 
     </div>
   );

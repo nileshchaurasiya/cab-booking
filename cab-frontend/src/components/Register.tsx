@@ -90,17 +90,23 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await apiRequest('/driver/vehicle', {
+      const driverToken = localStorage.getItem('driver_auth_token');
+      const res = await apiRequest('/driver/vehicle', {
         method: 'POST',
+        headers: driverToken ? { Authorization: `Bearer ${driverToken}` } : {},
         body: JSON.stringify(vehicleForm),
       });
 
-      // Refresh /me payload to ensure local profile cache is updated with driver detail
-      const meRes = await apiRequest('/me');
-      localStorage.setItem('driver_auth_user', JSON.stringify(meRes.user));
+      // Backend returns the updated user with populated driver_detail directly
+      const updatedUser = res.user || {
+        ...JSON.parse(localStorage.getItem('driver_auth_user') || '{}'),
+        driver_detail: res.driver_detail,
+      };
+
+      localStorage.setItem('driver_auth_user', JSON.stringify(updatedUser));
       localStorage.setItem('driver_is_online', 'true');
 
-      // Automatically log in and enter driver portal
+      // Seamlessly enter driver portal
       window.location.href = '/driver';
     } catch (err: any) {
       setError(err.message || 'Vehicle registration failed. Verify inputs.');

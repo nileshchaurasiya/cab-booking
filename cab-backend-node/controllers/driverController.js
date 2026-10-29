@@ -355,8 +355,11 @@ const registerVehicle = async (req, res, next) => {
       return res.status(422).json({ message: 'The given data was invalid.', errors });
     }
 
-    // Check unique
-    const existingLicense = await DriverDetail.findOne({ license_number });
+    // Check unique (excluding this driver's own existing detail)
+    const existingLicense = await DriverDetail.findOne({
+      license_number,
+      user_id: { $ne: req.user._id }
+    });
     if (existingLicense) {
       return res.status(422).json({
         message: 'The given data was invalid.',
@@ -364,7 +367,10 @@ const registerVehicle = async (req, res, next) => {
       });
     }
 
-    const existingPlate = await DriverDetail.findOne({ vehicle_plate_number });
+    const existingPlate = await DriverDetail.findOne({
+      vehicle_plate_number,
+      user_id: { $ne: req.user._id }
+    });
     if (existingPlate) {
       return res.status(422).json({
         message: 'The given data was invalid.',
@@ -372,21 +378,38 @@ const registerVehicle = async (req, res, next) => {
       });
     }
 
-    const detail = new DriverDetail({
-      user_id: req.user._id,
-      license_number,
-      vehicle_model,
-      vehicle_plate_number,
-      vehicle_color,
-      vehicle_type,
-      is_available: false
-    });
+    // Upsert / update existing vehicle record if driver already has one
+    let detail = await DriverDetail.findOne({ user_id: req.user._id });
+    if (detail) {
+      detail.license_number = license_number;
+      detail.vehicle_model = vehicle_model;
+      detail.vehicle_plate_number = vehicle_plate_number;
+      detail.vehicle_color = vehicle_color;
+      detail.vehicle_type = vehicle_type;
+    } else {
+      detail = new DriverDetail({
+        user_id: req.user._id,
+        license_number,
+        vehicle_model,
+        vehicle_plate_number,
+        vehicle_color,
+        vehicle_type,
+        is_available: false
+      });
+    }
 
     await detail.save();
 
+    // Fetch complete user with driver_detail populated so client has updated state immediately
+    const updatedUser = await User.findById(req.user._id).populate({
+      path: 'driver_detail',
+      populate: { path: 'reviews_count' }
+    });
+
     res.status(201).json({
       message: 'Vehicle registered successfully.',
-      driver_detail: detail
+      driver_detail: detail,
+      user: updatedUser
     });
 
   } catch (err) {
@@ -485,7 +508,29 @@ const cancelRide = async (req, res, next) => {
       });
     }
 
+    const { reason, cancelled_by } = req.body;
+    const allowedReasons = [
+      'Customer is not responding',
+      'Customer is not at pickup location',
+      'Customer is not at the pickup location',
+      'Vehicle problem',
+      'Emergency or personal reason',
+      'Wrong pickup or drop location',
+      'Other'
+    ];
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      return res.status(400).json({ message: 'Cancellation reason is required.' });
+    }
+    const trimmed = reason.trim();
+    if (!allowedReasons.includes(trimmed) && trimmed.length > 200) {
+      return res.status(400).json({ message: 'Invalid cancellation reason.' });
+    }
+
     ride.status = 'cancelled';
+    ride.cancellation_reason = trimmed;
+    ride.cancelled_by = req.user._id;
+    ride.cancelled_by_role = cancelled_by || 'driver';
+    ride.cancelled_at = new Date();
     await ride.save();
 
     // Refund wallet if payment method was wallet and completed
