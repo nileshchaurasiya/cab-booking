@@ -5,6 +5,8 @@ import CustomerDashboard from './components/CustomerDashboard';
 import DriverDashboard from './components/DriverDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import './App.css';
+import { LogoutModal } from './components/LogoutModal';
+import { useState } from 'react';
 
 // Protected Route Guard checking Role compatibility with role-specific keys
 function RoleProtectedRoute({ children, allowedRole }: { children: React.ReactNode; allowedRole: string }) {
@@ -32,63 +34,80 @@ function RoleProtectedRoute({ children, allowedRole }: { children: React.ReactNo
   return <>{children}</>;
 }
 
-// Role-specific logout routine
-const handleLogout = (role: 'customer' | 'driver' | 'admin') => {
-  if (!window.confirm("Are you sure you want to log out of your account?")) {
-    return;
-  }
-  localStorage.removeItem(`${role}_auth_token`);
-  localStorage.removeItem(`${role}_auth_user`);
-  localStorage.removeItem(`${role}_user`);
-  if (role === 'driver') {
-    localStorage.removeItem('driver_is_online');
-  }
-  window.location.href = '/login';
-};
+// (will be inserted inside App component) placeholder
 
 function App() {
+  const [logoutInfo, setLogoutInfo] = useState<{ role: 'customer' | 'driver' | 'admin'; user: any } | null>(null);
   const getUser = (role: string) => JSON.parse(localStorage.getItem(`${role}_auth_user`) || '{}');
 
+  const handleLogout = (role: 'customer' | 'driver' | 'admin') => {
+    const user = getUser(role);
+    setLogoutInfo({ role, user });
+  };
+
+  const confirmLogout = () => {
+    if (!logoutInfo) return;
+    const { role } = logoutInfo;
+    localStorage.removeItem(`${role}_auth_token`);
+    localStorage.removeItem(`${role}_auth_user`);
+    if (role === 'driver') {
+      localStorage.removeItem('driver_is_online');
+    }
+    setLogoutInfo(null);
+    window.location.href = '/login';
+  };
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+    <>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        {/* Customer Portal */}
-        <Route
-          path="/customer"
-          element={
-            <RoleProtectedRoute allowedRole="customer">
-              <CustomerDashboard user={getUser('customer')} onLogout={() => handleLogout('customer')} />
-            </RoleProtectedRoute>
-          }
+          {/* Customer Portal */}
+          <Route
+            path="/customer"
+            element={
+              <RoleProtectedRoute allowedRole="customer">
+                <CustomerDashboard user={getUser('customer')} onLogout={() => handleLogout('customer')} />
+              </RoleProtectedRoute>
+            }
+          />
+
+          {/* Driver Portal */}
+          <Route
+            path="/driver"
+            element={
+              <RoleProtectedRoute allowedRole="driver">
+                <DriverDashboard user={getUser('driver')} onLogout={() => handleLogout('driver')} />
+              </RoleProtectedRoute>
+            }
+          />
+
+          {/* Admin Control Center */}
+          <Route
+            path="/admin"
+            element={
+              <RoleProtectedRoute allowedRole="admin">
+                <AdminDashboard user={getUser('admin')} onLogout={() => handleLogout('admin')} />
+              </RoleProtectedRoute>
+            }
+          />
+
+          {/* Redirect unknown routes */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Router>
+      {logoutInfo && (
+        <LogoutModal
+          isOpen={true}
+          onClose={() => setLogoutInfo(null)}
+          onConfirm={confirmLogout}
+          userName={logoutInfo.user?.name || ''}
+          role={logoutInfo.role}
         />
-
-        {/* Driver Portal */}
-        <Route
-          path="/driver"
-          element={
-            <RoleProtectedRoute allowedRole="driver">
-              <DriverDashboard user={getUser('driver')} onLogout={() => handleLogout('driver')} />
-            </RoleProtectedRoute>
-          }
-        />
-
-        {/* Admin Control Center */}
-        <Route
-          path="/admin"
-          element={
-            <RoleProtectedRoute allowedRole="admin">
-              <AdminDashboard user={getUser('admin')} onLogout={() => handleLogout('admin')} />
-            </RoleProtectedRoute>
-          }
-        />
-
-        {/* Redirect unknown routes */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
+      )}
+    </>
   );
 }
 
