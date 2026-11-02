@@ -584,17 +584,6 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Select Vehicle Class</label>
-                      {driverAvailability && (
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                          driverAvailability.total_available > 0
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
-                        }`}>
-                          {driverAvailability.total_available > 0
-                            ? `● ${driverAvailability.total_available} Driver${driverAvailability.total_available > 1 ? 's' : ''} Online`
-                            : '● All Drivers Offline'}
-                        </span>
-                      )}
                     </div>
                     <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
 
@@ -610,15 +599,6 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🚗</span>
                         <span className="text-xs font-bold text-slate-800 dark:text-white block">Car</span>
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹30/km</span>
-                        {driverAvailability && (
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-1.5 ${
-                            (driverAvailability.by_type.Car || 0) > 0
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
-                          }`}>
-                            {(driverAvailability.by_type.Car || 0) > 0 ? `${driverAvailability.by_type.Car} Online` : 'Offline'}
-                          </span>
-                        )}
                       </button>
 
                       {/* Rickshaw Class */}
@@ -633,15 +613,6 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🛺</span>
                         <span className="text-xs font-bold text-slate-800 dark:text-white block">Rickshaw</span>
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹20/km</span>
-                        {driverAvailability && (
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-1.5 ${
-                            (driverAvailability.by_type.Rickshaw || 0) > 0
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
-                          }`}>
-                            {(driverAvailability.by_type.Rickshaw || 0) > 0 ? `${driverAvailability.by_type.Rickshaw} Online` : 'Offline'}
-                          </span>
-                        )}
                       </button>
 
                       {/* Bike Class */}
@@ -656,15 +627,6 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                         <span className="text-lg mb-1 group-hover:scale-110 transition-transform">🏍️</span>
                         <span className="text-xs font-bold text-slate-800 dark:text-white block">Bike</span>
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">₹10/km</span>
-                        {driverAvailability && (
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-1.5 ${
-                            (driverAvailability.by_type.Bike || 0) > 0
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border border-rose-500/20'
-                          }`}>
-                            {(driverAvailability.by_type.Bike || 0) > 0 ? `${driverAvailability.by_type.Bike} Online` : 'Offline'}
-                          </span>
-                        )}
                       </button>
 
                     </div>
@@ -718,53 +680,17 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                     </div>
                   )}
 
-                  {/* All Drivers Offline Banner */}
-                  {driverAvailability && driverAvailability.total_available === 0 && (
-                    <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-xs mt-3">
-                      <span className="text-xl shrink-0">🚫</span>
-                      <div>
-                        <strong className="block font-bold">Driver is Not Available</strong>
-                        <span className="text-[11px] opacity-90 leading-relaxed block mt-0.5">
-                          All drivers are currently offline. Bookings cannot be requested at this time.
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Selected Vehicle Offline Banner */}
-                  {driverAvailability && driverAvailability.total_available > 0 && selectedCab && (driverAvailability.by_type[selectedCab.name as keyof typeof driverAvailability.by_type] || 0) === 0 && (
-                    <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs mt-3">
-                      <span className="text-xl shrink-0">⚠️</span>
-                      <div>
-                        <strong className="block font-bold">{selectedCab.name} Driver is Not Available</strong>
-                        <span className="text-[11px] opacity-90 leading-relaxed block mt-0.5">
-                          No {selectedCab.name} drivers are active right now. Please select an available vehicle class above.
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Book Button */}
                   <button
                     type="submit"
-                    disabled={
-                      bookingRide ||
-                      !selectedCab ||
-                      (driverAvailability !== null && selectedCab && (driverAvailability.by_type[selectedCab.name as keyof typeof driverAvailability.by_type] || 0) === 0)
-                    }
+                    disabled={bookingRide || !selectedCab}
                     className={`w-full py-3.5 px-4 rounded-2xl font-bold shadow-lg transition-all duration-200 mt-4 ${
-                      driverAvailability !== null && selectedCab && (driverAvailability.by_type[selectedCab.name as keyof typeof driverAvailability.by_type] || 0) === 0
-                        ? 'bg-rose-500/15 text-rose-500 dark:text-rose-400 border border-rose-500/30 cursor-not-allowed'
-                        : !selectedCab
-                          ? 'bg-slate-200 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
-                          : 'bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black hover:-translate-y-0.5 cursor-pointer'
+                      !selectedCab
+                        ? 'bg-slate-200 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
+                        : 'bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black hover:-translate-y-0.5 cursor-pointer'
                     }`}
                   >
-                    {bookingRide
-                      ? 'Requesting Ride...'
-                      : driverAvailability !== null && selectedCab && (driverAvailability.by_type[selectedCab.name as keyof typeof driverAvailability.by_type] || 0) === 0
-                        ? `🚫 ${selectedCab.name} Driver is Not Available (Offline)`
-                        : '🚕 Book Cab Now'}
+                    {bookingRide ? 'Requesting Ride...' : '🚕 Book Cab Now'}
                   </button>
                 </form>
               </div>
