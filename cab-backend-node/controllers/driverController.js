@@ -251,11 +251,12 @@ const updateStatus = async (req, res, next) => {
     await ride.save();
 
     if (status === 'completed') {
-      // Calculate actual ride duration in minutes
+      // Calculate actual ride duration in minutes matching clock minute difference
       const startTime = ride.pickup_waiting_started_at || ride.driver_accepted_at || ride.createdAt;
       if (startTime) {
-        const diffMs = Date.now() - new Date(startTime).getTime();
-        ride.duration = Math.max(1, Math.round(diffMs / (1000 * 60)));
+        const startMin = Math.floor(new Date(startTime).getTime() / 60000);
+        const endMin = Math.floor(Date.now() / 60000);
+        ride.duration = Math.max(1, endMin - startMin);
         await ride.save();
       }
 

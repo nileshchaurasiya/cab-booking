@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
-import { Users, IndianRupee, CheckCircle, RefreshCw, UserMinus, UserCheck, Plus, LogOut } from 'lucide-react';
+import { Users, IndianRupee, CheckCircle, RefreshCw, UserMinus, UserCheck, LogOut } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
 export default function AdminDashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
@@ -23,25 +23,6 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
   const [historyRides, setHistoryRides] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
-
-  // Modals state
-  const [showAddDriverModal, setShowAddDriverModal] = useState(false);
-  const [modalError, setModalError] = useState('');
-
-  // Form inputs for direct driver registration
-  const [driverForm, setDriverForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    password_confirmation: '',
-    license_number: '',
-    vehicle_model: '',
-    vehicle_plate_number: '',
-    vehicle_color: '',
-    vehicle_type: 'sedan',
-  });
-  const [registeringDriver, setRegisteringDriver] = useState(false);
 
   // Toast messages
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' }[]>([]);
@@ -154,49 +135,6 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
     }
   };
 
-  const handleAddDriverSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (driverForm.password !== driverForm.password_confirmation) {
-      setModalError('Passwords do not match.');
-      return;
-    }
-    setRegisteringDriver(true);
-    setModalError('');
-
-    try {
-      await apiRequest('/register', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...driverForm,
-          role: 'driver',
-        }),
-      });
-
-      addToast('Driver account registered successfully!');
-      setShowAddDriverModal(false);
-      // Reset inputs
-      setDriverForm({
-        name: '',
-        email: '',
-        phone: '',
-        password: '',
-        password_confirmation: '',
-        license_number: '',
-        vehicle_model: '',
-        vehicle_plate_number: '',
-        vehicle_color: '',
-        vehicle_type: 'sedan',
-      });
-      fetchDrivers();
-      fetchStats();
-    } catch (err: any) {
-      setModalError(err.message || 'Failed to register driver account.');
-      addToast(err.message || 'Failed to register driver account.', 'error');
-    } finally {
-      setRegisteringDriver(false);
-    }
-  };
-
   const handleRefreshAll = () => {
     fetchStats();
     fetchDrivers();
@@ -291,13 +229,6 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
               title="Refresh All Data"
             >
               <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => { setModalError(''); setShowAddDriverModal(true); }}
-              className="flex items-center gap-1 px-4 py-2.5 bg-sky-500 hover:bg-sky-400 text-white dark:text-black text-xs font-bold rounded-xl transition-all cursor-pointer shadow-lg shadow-sky-500/10"
-            >
-              <Plus className="w-4 h-4" />
-              Add Driver
             </button>
           </div>
         </div>
@@ -567,136 +498,6 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
             <div className="text-center py-12 text-xs text-neutral-500">No shift log transactions found.</div>
           )}
         </div>
-
-        {/* ADD DRIVER MODAL */}
-        {showAddDriverModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-            <div className="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-800 rounded-[2rem] max-w-md w-full p-8 shadow-2xl relative">
-              <button
-                onClick={() => setShowAddDriverModal(false)}
-                className="absolute top-6 right-6 text-neutral-500 hover:text-white cursor-pointer transition-colors text-lg"
-              >
-                ✕
-              </button>
-              <div className="text-center mb-6">
-                <span className="text-3xl block mb-2">🚗</span>
-                <h3 className="text-xl font-extrabold text-slate-800 dark:text-white">Add New Driver</h3>
-                <p className="text-xs text-slate-500 dark:text-neutral-400">Create a driver account partner credentials instantly.</p>
-              </div>
-              {modalError && (
-                <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center font-medium">
-                  {modalError}
-                </div>
-              )}
-              <form onSubmit={handleAddDriverSubmit} className="space-y-4">
-                <div>
-                  <input
-                    type="text"
-                    required
-                    value={driverForm.name}
-                    onChange={(e) => setDriverForm({ ...driverForm, name: e.target.value })}
-                    placeholder="Full Name"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="email"
-                    required
-                    value={driverForm.email}
-                    onChange={(e) => setDriverForm({ ...driverForm, email: e.target.value })}
-                    placeholder="Email Address"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    required
-                    value={driverForm.phone}
-                    onChange={(e) => setDriverForm({ ...driverForm, phone: e.target.value })}
-                    placeholder="Phone (e.g. 0987654321)"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="password"
-                    required
-                    value={driverForm.password}
-                    onChange={(e) => setDriverForm({ ...driverForm, password: e.target.value })}
-                    placeholder="Set Password"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="password"
-                    required
-                    value={driverForm.password_confirmation}
-                    onChange={(e) => setDriverForm({ ...driverForm, password_confirmation: e.target.value })}
-                    placeholder="Confirm Password"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  />
-                </div>
-
-                <div className="border-t border-neutral-900 pt-4 space-y-3">
-                  <input
-                    type="text"
-                    required
-                    value={driverForm.license_number}
-                    onChange={(e) => setDriverForm({ ...driverForm, license_number: e.target.value })}
-                    placeholder="License Number"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    required
-                    value={driverForm.vehicle_model}
-                    onChange={(e) => setDriverForm({ ...driverForm, vehicle_model: e.target.value })}
-                    placeholder="Vehicle Model (e.g. Suzuki)"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    required
-                    value={driverForm.vehicle_plate_number}
-                    onChange={(e) => setDriverForm({ ...driverForm, vehicle_plate_number: e.target.value.toUpperCase() })}
-                    placeholder="Plate Number (e.g. MH12AB1234)"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none uppercase"
-                  />
-                  <input
-                    type="text"
-                    required
-                    value={driverForm.vehicle_color}
-                    onChange={(e) => setDriverForm({ ...driverForm, vehicle_color: e.target.value })}
-                    placeholder="Vehicle Color"
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  />
-                  <select
-                    value={driverForm.vehicle_type}
-                    onChange={(e) => setDriverForm({ ...driverForm, vehicle_type: e.target.value })}
-                    className="block w-full px-4 py-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-neutral-800 rounded-xl text-slate-850 dark:text-neutral-100 text-xs focus:outline-none"
-                  >
-                    <option value="sedan">Sedan</option>
-                    <option value="suv">SUV</option>
-                    <option value="hatchback">Hatchback</option>
-                    <option value="bike">Bike</option>
-                    <option value="rickshaw">Rickshaw</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={registeringDriver}
-                  className="w-full py-3.5 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-6 text-xs"
-                >
-                  {registeringDriver ? 'Registering Driver...' : 'Register Driver Account'}
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
 
       </main>
     </div>

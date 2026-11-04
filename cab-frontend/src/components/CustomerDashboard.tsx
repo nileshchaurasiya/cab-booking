@@ -153,6 +153,9 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
   const [feedbackStars, setFeedbackStars] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  // Track which ride ID was reviewed and the rating given, so we don't re-show the form
+  const [reviewedRideId, setReviewedRideId] = useState<string | null>(null);
+  const [submittedRating, setSubmittedRating] = useState<number>(0);
 
   // Notifications
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' }[]>([]);
@@ -264,16 +267,28 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
       const rides = res.data || [];
       setHistoryRides(rides);
 
-      const active = rides.find((r: any) => {
-        if (['requested', 'accepted', 'arrived', 'waiting_for_customer', 'in_progress'].includes(r.status)) {
-          return true;
+      // Priority 1: Find a truly active ride (in progress, requested, etc.)
+      const inProgressRide = rides.find((r: any) =>
+        ['requested', 'accepted', 'arrived', 'waiting_for_customer', 'in_progress'].includes(r.status)
+      );
+
+      // Priority 2: If no active ride, find the MOST RECENT completed ride that hasn't been reviewed yet
+      let unreviewed: any = null;
+      if (!inProgressRide) {
+        // rides may be sorted oldest-first, so we iterate in reverse to get the newest
+        for (let i = rides.length - 1; i >= 0; i--) {
+          const r = rides[i];
+          const rideId = r.id || r._id;
+          // Skip rides we already submitted a review for (even if backend hasn't indexed it yet)
+          if (rideId === reviewedRideId) continue;
+          if (r.status === 'completed' && !(r.reviews && r.reviews.length > 0)) {
+            unreviewed = r;
+            break;
+          }
         }
-        if (r.status === 'completed') {
-          const hasReviewed = r.reviews && r.reviews.length > 0;
-          return !hasReviewed;
-        }
-        return false;
-      });
+      }
+
+      const active = inProgressRide || unreviewed;
 
       if (active) {
         setActiveRide(active);
@@ -284,10 +299,18 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
         if (active.status === 'waiting_for_customer') setProgressPercentage(75);
         if (active.status === 'in_progress') setProgressPercentage(90);
       } else {
-        // If there was an active ride and now there isn't, the driver may have cancelled
+        // If there was an active ride and now there isn't, check WHY it disappeared
         if (activeRide) {
-          fetchWallet(); // Refresh wallet to pick up refund
-          addToast('Your ride was cancelled by the driver. Wallet refunded.', 'error');
+          // Look up the previous active ride in the latest rides list to check its actual status
+          const previousRide = rides.find((r: any) => r.id === activeRide.id || r._id === activeRide._id);
+          if (previousRide && previousRide.status === 'cancelled') {
+            // Only show cancellation message if the ride was actually cancelled
+            fetchWallet(); // Refresh wallet to pick up refund
+            addToast('Your ride was cancelled by the driver. Wallet refunded.', 'error');
+          } else {
+            // Ride completed or reviewed — just refresh wallet silently
+            fetchWallet();
+          }
         }
         setActiveRide(null);
       }
@@ -439,9 +462,14 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
         }),
       });
       addToast('Review submitted successfully. Safe travels!');
+      // Record the exact ride ID and rating that was submitted
+      setReviewedRideId(activeRide.id || activeRide._id);
+      setSubmittedRating(feedbackStars);
       setReviewSubmitted(true);
       setShowFeedbackModal(false);
-      fetchHistory();
+      // Don't call fetchHistory() here — it would re-query and potentially
+      // overwrite activeRide before the backend has indexed the review.
+      // The next poll cycle will pick it up naturally.
     } catch (err: any) {
       addToast(err.message || 'Failed to submit review.', 'error');
     }
@@ -741,57 +769,79 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                     </div>
                   </div>
 
-                  {!reviewSubmitted ? (
-                    <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-4">
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-white text-center">How was your ride?</h4>
-                      <div className="flex items-center justify-center gap-2">
-                        {[1, 2, 3, 4, 5].map((star) => (
+                  {(() => {
+                    // Determine if this specific ride has been reviewed
+                    const currentRideId = activeRide.id || activeRide._id;
+                    const hasBackendReview = activeRide.reviews && activeRide.reviews.length > 0;
+                    const justSubmitted = reviewedRideId === currentRideId;
+                    const isReviewed = hasBackendReview || justSubmitted;
+
+                    // Determine the rating to display
+                    const displayRating = justSubmitted
+                      ? submittedRating
+                      : hasBackendReview
+                        ? activeRide.reviews[0].rating
+                        : 0;
+
+                    if (!isReviewed) {
+                      // Show the rating form
+                      return (
+                        <div className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 space-y-4">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-white text-center">How was your ride?</h4>
+                          <div className="flex items-center justify-center gap-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                onClick={() => setFeedbackStars(star)}
+                                className="text-2xl focus:outline-none transition-all hover:scale-110 cursor-pointer"
+                              >
+                                <span className={star <= feedbackStars ? 'text-amber-400' : 'text-neutral-700'}>★</span>
+                              </button>
+                            ))}
+                          </div>
+                          <div className="space-y-1">
+                            <label className="block text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">How was your experience?</label>
+                            <textarea
+                              value={feedbackComment}
+                              onChange={(e) => setFeedbackComment(e.target.value)}
+                              rows={2}
+                              placeholder="Write your review..."
+                              className="block w-full px-3 py-2 bg-slate-200 dark:bg-black border border-slate-350 dark:border-neutral-800 rounded-xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-600 text-xs focus:outline-none focus:border-sky-500 transition-all resize-none"
+                            />
+                          </div>
                           <button
-                            key={star}
-                            onClick={() => setFeedbackStars(star)}
-                            className="text-2xl focus:outline-none transition-all hover:scale-110 cursor-pointer"
+                            onClick={handleFeedbackSubmit}
+                            className="w-full py-2.5 px-4 rounded-xl font-bold bg-sky-600 hover:bg-sky-500 text-black hover:-translate-y-0.5 transition-all cursor-pointer text-xs"
                           >
-                            <span className={star <= feedbackStars ? 'text-amber-400' : 'text-neutral-700'}>★</span>
+                            Submit Review
                           </button>
-                        ))}
-                      </div>
-                      <div className="space-y-1">
-                        <label className="block text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">How was your experience?</label>
-                        <textarea
-                          value={feedbackComment}
-                          onChange={(e) => setFeedbackComment(e.target.value)}
-                          rows={2}
-                          placeholder="Write your review..."
-                          className="block w-full px-3 py-2 bg-slate-200 dark:bg-black border border-slate-350 dark:border-neutral-800 rounded-xl text-slate-800 dark:text-neutral-100 placeholder-slate-400 dark:placeholder-neutral-600 text-xs focus:outline-none focus:border-sky-500 transition-all resize-none"
-                        />
-                      </div>
-                      <button
-                        onClick={handleFeedbackSubmit}
-                        className="w-full py-2.5 px-4 rounded-xl font-bold bg-sky-600 hover:bg-sky-500 text-black hover:-translate-y-0.5 transition-all cursor-pointer text-xs"
-                      >
-                        Submit Review
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl p-5 text-center space-y-3">
-                      <strong className="text-xs font-bold block">Review submitted successfully ✓</strong>
-                      <div className="text-2xl tracking-widest text-amber-400">
-                        {Array.from({ length: feedbackStars }).map((_, _i) => '★').join('')}
-                      </div>
-                      <span className="text-[10px] text-neutral-400 block font-mono">Your rating: {feedbackStars}/5</span>
-                      <button
-                        onClick={() => {
-                          setReviewSubmitted(false);
-                          setActiveRide(null);
-                          setFeedbackComment('');
-                          fetchRides();
-                        }}
-                        className="w-full py-2.5 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-black cursor-pointer text-xs"
-                      >
-                        Back to Booking
-                      </button>
-                    </div>
-                  )}
+                        </div>
+                      );
+                    } else {
+                      // Show the submitted rating
+                      return (
+                        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl p-5 text-center space-y-3">
+                          <strong className="text-xs font-bold block">Review submitted successfully ✓</strong>
+                          <div className="text-2xl tracking-widest text-amber-400">
+                            {Array.from({ length: displayRating }).map((_, _i) => '★').join('')}
+                          </div>
+                          <span className="text-[10px] text-neutral-400 block font-mono">Your rating: {displayRating}/5</span>
+                          <button
+                            onClick={() => {
+                              setReviewSubmitted(false);
+                              setActiveRide(null);
+                              setFeedbackComment('');
+                              setFeedbackStars(5);
+                              fetchRides();
+                            }}
+                            className="w-full py-2.5 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-black cursor-pointer text-xs"
+                          >
+                            Back to Booking
+                          </button>
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
             ) : (

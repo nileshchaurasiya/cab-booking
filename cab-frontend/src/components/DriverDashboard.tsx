@@ -137,15 +137,17 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
 
     if (!startStr || !endStr) return `${ride.duration || 1} minutes`;
 
-    const start = new Date(startStr).getTime();
-    const end = new Date(endStr).getTime();
+    const start = new Date(startStr);
+    const end = new Date(endStr);
 
-    if (isNaN(start) || isNaN(end) || end < start) {
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end.getTime() < start.getTime()) {
       return `${ride.duration || 1} minutes`;
     }
 
-    const diffMs = end - start;
-    const minutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
+    // Align to minute level to match the displayed clock times (e.g. 11:31 AM to 11:49 AM = 18 minutes)
+    const startMin = Math.floor(start.getTime() / 60000);
+    const endMin = Math.floor(end.getTime() / 60000);
+    const minutes = Math.max(1, endMin - startMin);
     return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
   };
 
@@ -784,7 +786,7 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
                     <hr className="border-slate-200 dark:border-neutral-900" />
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Ride Started:</span>
-                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.pickup_waiting_started_at || completedSummary.created_at)}</strong>
+                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.pickup_waiting_started_at || completedSummary.driver_accepted_at || completedSummary.created_at || completedSummary.createdAt)}</strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Ride Completed:</span>
