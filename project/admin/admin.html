@@ -5,6 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Control Center</title>
+    <script>
+        (function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const themeParam = urlParams.get('theme');
+            if (themeParam === 'light' || themeParam === 'dark') {
+                localStorage.setItem('indiancabs_theme', themeParam);
+            }
+            const savedTheme = localStorage.getItem('indiancabs_theme') || 'dark';
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
     <!-- Google Fonts for Modern Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -152,41 +167,39 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 
             <!-- Drivers Panel -->
-            <!-- <div
+            <div
                 class="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm dark:shadow-xl space-y-4 transition-all duration-300">
-                <div class="">
+                <div class="flex items-center justify-between">
                     <h2 class="text-lg font-bold text-slate-800 dark:text-white">Driver Roster</h2>
                     <div class="flex items-center gap-2">
                         <button onclick="openAddDriverModal()"
                             class="text-[10px] px-3 py-1.5 rounded-lg font-bold border transition-all cursor-pointer bg-sky-500 hover:bg-sky-400 border-sky-500 text-white flex items-center gap-1">
                             ➕ Add Driver
-                        </button> -->
-            <!-- <span
-                            class="text-[10px] bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-neutral-400 border border-slate-200 dark:border-neutral-800 px-2 py-0.5 rounded font-mono">Live
-                            Sync</span> 
+                        </button>
+                    </div>
                 </div>
-            </div> -->
-            <div class="overflow-x-auto -mx-4 sm:mx-0">
-                <div class="px-4 sm:px-0">
-                    <table class="w-full text-left text-xs" style="min-width: 400px;">
-                        <thead>
-                            <tr
-                                class="border-b border-slate-100 dark:border-neutral-900 text-slate-400 dark:text-slate-500 font-bold">
-                                <th class="pb-3 pr-2">Driver</th>
-                                <th class="pb-3 pr-2">Vehicle</th>
-                                <th class="pb-3 pr-2">Status</th>
-                                <th class="pb-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="driver-roster-body" class="divide-y divide-slate-100 dark:divide-neutral-900">
-                            <!-- Populated dynamically -->
-                            <tr>
-                                <td colspan="4" class="py-4 text-center text-slate-400 dark:text-slate-500">No
-                                    registered drivers logged in
-                                    yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="overflow-x-auto -mx-4 sm:mx-0">
+                    <div class="px-4 sm:px-0">
+                        <table class="w-full text-left text-xs" style="min-width: 400px;">
+                            <thead>
+                                <tr
+                                    class="border-b border-slate-100 dark:border-neutral-900 text-slate-400 dark:text-slate-500 font-bold">
+                                    <th class="pb-3 pr-2">Driver</th>
+                                    <th class="pb-3 pr-2">Vehicle</th>
+                                    <th class="pb-3 pr-2">Status</th>
+                                    <th class="pb-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="driver-roster-body" class="divide-y divide-slate-100 dark:divide-neutral-900">
+                                <!-- Populated dynamically -->
+                                <tr>
+                                    <td colspan="4" class="py-4 text-center text-slate-400 dark:text-slate-500">No
+                                        registered drivers logged in
+                                        yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
