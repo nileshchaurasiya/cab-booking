@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { CancellationModal } from './CancellationModal';
+import { getRideDurationDisplay, formatISTDateTime } from '../utils/timeUtils';
 
 export default function DriverDashboard({ user: initialUser, onLogout }: { user: any; onLogout: () => void }) {
   useEffect(() => { document.title = 'Driver - Indian Cabs'; }, []);
@@ -39,6 +40,10 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   });
   const [activeRequest, setActiveRequest] = useState<any>(null);
   const [activeTrip, setActiveTrip] = useState<any>(null);
+  const activeTripRef = React.useRef<any>(null);
+  useEffect(() => {
+    activeTripRef.current = activeTrip;
+  }, [activeTrip]);
   const [tripProgress, setTripProgress] = useState(0);
   const [displayProgress, setDisplayProgress] = useState(0);
   const [requestTimer, setRequestTimer] = useState(5);
@@ -105,7 +110,14 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   const [tripsCount, setTripsCount] = useState(0);
   const [driverRating, setDriverRating] = useState<any>(5.00);
   const [reviewsCount, setReviewsCount] = useState<number>(0);
-  const [completedSummary, setCompletedSummary] = useState<any>(null);
+  const [completedSummary, setCompletedSummary] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('last_completed_summary');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [waitingSeconds, setWaitingSeconds] = useState(0);
 
   const formatTime = (totalSeconds: number) => {
@@ -115,40 +127,11 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   };
 
   const formatDateTime = (dateVal: any) => {
-    if (!dateVal) return '—';
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return '—';
-    const formatted = d.toLocaleString('en-IN', {
-      timeZone: 'Asia/Kolkata',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-    return formatted.replace(/-/g, ' ').toUpperCase();
+    return formatISTDateTime(dateVal);
   };
 
   const calculateRideDuration = (ride: any) => {
-    if (!ride) return '0 minutes';
-    const startStr = ride.pickup_waiting_started_at || ride.driver_accepted_at || ride.created_at || ride.createdAt;
-    const endStr = ride.updated_at || ride.updatedAt || new Date().toISOString();
-
-    if (!startStr || !endStr) return `${ride.duration || 1} minutes`;
-
-    const start = new Date(startStr);
-    const end = new Date(endStr);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end.getTime() < start.getTime()) {
-      return `${ride.duration || 1} minutes`;
-    }
-
-    // Align to minute level to match the displayed clock times (e.g. 11:31 AM to 11:49 AM = 18 minutes)
-    const startMin = Math.floor(start.getTime() / 60000);
-    const endMin = Math.floor(end.getTime() / 60000);
-    const minutes = Math.max(1, endMin - startMin);
-    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+    return getRideDurationDisplay(ride);
   };
 
   // Live waiting timer tick
@@ -171,9 +154,13 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   }, [activeTrip]);
 
   // History Filter
+  const PAGE_SIZE = 5;
   const [historyFilter, setHistoryFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
   const [historyRides, setHistoryRides] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyPage, setHistoryPage] = useState<number>(1);
+  const [historyTotal, setHistoryTotal] = useState<number>(0);
+  const [historyLastPage, setHistoryLastPage] = useState<number>(1);
 
   // Modals state
   const [showVehicleModal, setShowVehicleModal] = useState(false);
@@ -309,15 +296,28 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
       const active = rides.find((r: any) => ['accepted', 'arrived', 'waiting_for_customer', 'in_progress'].includes(r.status));
       if (active) {
         setActiveTrip(active);
+        activeTripRef.current = active;
         setIsOnline(true);
         if (active.status === 'accepted') setTripProgress(30);
         if (active.status === 'arrived') setTripProgress(60);
         if (active.status === 'waiting_for_customer') setTripProgress(70);
         if (active.status === 'in_progress') setTripProgress(90);
       } else {
-        if (activeTrip) {
+        const currentActive = activeTripRef.current || activeTrip;
+        if (currentActive) {
+          // Look up previous active ride to check why it is no longer active
+          const previousRide = rides.find((r: any) =>
+            r.id === currentActive.id ||
+            r._id === currentActive.id ||
+            r.id === currentActive._id ||
+            r._id === currentActive._id
+          );
+          activeTripRef.current = null;
           setActiveTrip(null);
-          addToast('The customer cancelled this ride.', 'error');
+          // Only show cancellation toast if the ride was actually cancelled by customer (not completed)
+          if (previousRide && previousRide.status === 'cancelled') {
+            addToast('The customer cancelled this ride.', 'error');
+          }
           fetchHistory(false);
         }
       }
@@ -329,18 +329,27 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   const fetchHistory = async (showLoading = false) => {
     if (showLoading) setLoadingHistory(true);
     try {
-      const res = await apiRequest('/driver/rides');
-      const rides = res.data || [];
-      setHistoryRides(rides);
+      const statusParam = historyFilter !== 'all' ? `&status=${historyFilter}` : '';
+      const res = await apiRequest(`/driver/rides?page=${historyPage}&limit=${PAGE_SIZE}${statusParam}`);
+      const rides = Array.isArray(res) ? res : (res.data || []);
+      const total = typeof res.total === 'number' ? res.total : rides.length;
+      const lastPage = typeof res.last_page === 'number' ? res.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-      // Summarize stats
-      const completed = rides.filter((r: any) => r.status === 'completed');
+      setHistoryRides(rides);
+      setHistoryTotal(total);
+      setHistoryPage(res.current_page || historyPage);
+      setHistoryLastPage(lastPage);
+
+      // Summarize stats from ALL completed rides (separate unfiltered request for stats)
+      const statsRes = await apiRequest('/driver/rides?page=1&limit=9999');
+      const allRides = Array.isArray(statsRes) ? statsRes : (statsRes.data || []);
+      const completed = allRides.filter((r: any) => r.status === 'completed');
       setTripsCount(completed.length);
       const totalEarned = completed.reduce((sum: number, r: any) => sum + parseFloat(r.fare), 0);
       setEarnings(totalEarned * 0.9);
 
       // Dynamically calculate average rating & count from all ride reviews
-      const allReviews = rides
+      const allReviews = allRides
         .filter((ride: any) => ride.reviews && ride.reviews.length > 0)
         .flatMap((ride: any) => ride.reviews);
 
@@ -359,6 +368,41 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
       if (showLoading) setLoadingHistory(false);
     }
   };
+
+  const fetchTripHistory = async (page: number = historyPage, filter: string = historyFilter, showLoader = false) => {
+    if (showLoader) setLoadingHistory(true);
+    try {
+      const statusParam = filter !== 'all' ? `&status=${filter}` : '';
+      const res = await apiRequest(`/driver/rides?page=${page}&limit=${PAGE_SIZE}${statusParam}`);
+      const rides = Array.isArray(res) ? res : (res.data || []);
+      const total = typeof res.total === 'number' ? res.total : rides.length;
+      const lastPage = typeof res.last_page === 'number' ? res.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+      setHistoryRides(rides);
+      setHistoryTotal(total);
+      setHistoryPage(res.current_page || page);
+      setHistoryLastPage(lastPage);
+    } catch (err: any) {
+      console.error('Failed to fetch driver trip history', err);
+    } finally {
+      if (showLoader) setLoadingHistory(false);
+    }
+  };
+
+  const handleFilterChange = (newFilter: 'all' | 'completed' | 'cancelled') => {
+    setHistoryFilter(newFilter);
+    setHistoryPage(1);
+    fetchTripHistory(1, newFilter, true);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > historyLastPage) return;
+    setHistoryPage(newPage);
+    fetchTripHistory(newPage, historyFilter, true);
+  };
+
+  const handlePrevPage = () => handlePageChange(historyPage - 1);
+  const handleNextPage = () => handlePageChange(historyPage + 1);
 
   const handleToggleShift = async (forceOnline?: boolean) => {
     const nextState = forceOnline !== undefined ? forceOnline : !isOnline;
@@ -392,6 +436,7 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
         method: 'POST',
       });
       setActiveTrip(res.ride);
+      activeTripRef.current = res.ride;
       setActiveRequest(null);
       setDisplayProgress(0); // Reset animation to 0% for new ride
       setTripProgress(30);
@@ -412,23 +457,32 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
       });
 
       const updatedRide = res.ride;
-      setActiveTrip(updatedRide);
 
-      if (status === 'arrived') {
-        setTripProgress(50);
-        addToast('Arrived at customer pickup point.');
-      } else if (status === 'waiting_for_customer') {
-        setTripProgress(70);
-        addToast('Waiting for customer...');
-      } else if (status === 'in_progress') {
-        setTripProgress(90);
-        addToast('Ride started. Heading to destination.');
-      } else if (status === 'completed') {
+      if (status === 'completed') {
+        activeTripRef.current = null;
+        setActiveTrip(null);
         setTripProgress(100);
         addToast('Journey completed successfully! Earnings added.');
         setCompletedSummary(updatedRide);
-        setActiveTrip(null);
+        try {
+          localStorage.setItem('last_completed_summary', JSON.stringify(updatedRide));
+        } catch (e) {
+          console.error('Failed to save completed summary', e);
+        }
         fetchHistory();
+      } else {
+        setActiveTrip(updatedRide);
+        activeTripRef.current = updatedRide;
+        if (status === 'arrived') {
+          setTripProgress(50);
+          addToast('Arrived at customer pickup point.');
+        } else if (status === 'waiting_for_customer') {
+          setTripProgress(70);
+          addToast('Waiting for customer...');
+        } else if (status === 'in_progress') {
+          setTripProgress(90);
+          addToast('Ride started. Heading to destination.');
+        }
       }
     } catch (err: any) {
       addToast(err.message || 'Status transition failed.', 'error');
@@ -454,6 +508,7 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
       });
       addToast(res.message || 'Trip cancelled successfully.', 'success');
       setShowCancelModal(false);
+      activeTripRef.current = null;
       setActiveTrip(null);
       fetchHistory();
     } catch (err: any) {
@@ -528,10 +583,7 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
     }
   };
 
-  const filteredHistory = historyRides.filter((ride) => {
-    if (historyFilter === 'all') return true;
-    return ride.status === historyFilter;
-  });
+  const filteredHistory = historyRides;
 
   return (
     <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
@@ -786,11 +838,11 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
                     <hr className="border-slate-200 dark:border-neutral-900" />
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Ride Started:</span>
-                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.pickup_waiting_started_at || completedSummary.driver_accepted_at || completedSummary.created_at || completedSummary.createdAt)}</strong>
+                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.startedAt || completedSummary.started_at || completedSummary.pickup_waiting_started_at || completedSummary.driver_accepted_at || completedSummary.created_at || completedSummary.createdAt)}</strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Ride Completed:</span>
-                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.updated_at || completedSummary.updatedAt || new Date())}</strong>
+                      <strong className="text-slate-850 dark:text-slate-300 font-bold">{formatDateTime(completedSummary.completedAt || completedSummary.completed_at || completedSummary.updated_at || completedSummary.updatedAt)}</strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Total Ride Time:</span>
@@ -799,7 +851,10 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
                   </div>
 
                   <button
-                    onClick={() => setCompletedSummary(null)}
+                    onClick={() => {
+                      setCompletedSummary(null);
+                      localStorage.removeItem('last_completed_summary');
+                    }}
                     className="w-full py-3 px-4 rounded-xl font-bold bg-sky-500 hover:bg-sky-400 text-black shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer mt-4 text-xs"
                   >
                     [ Back to Dashboard ]
@@ -979,32 +1034,55 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
             {/* Trip Logs */}
             <div className="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-[2rem] p-6 shadow-sm dark:shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Shift Trip History</h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Rides completed during shift</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => handleFilterChange('all')}
+                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'all' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
+                        }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => handleFilterChange('completed')}
+                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'completed' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
+                        }`}
+                    >
+                      Completed
+                    </button>
+                    <button
+                      onClick={() => handleFilterChange('cancelled')}
+                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'cancelled' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
+                        }`}
+                    >
+                      Cancelled
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => setHistoryFilter('all')}
-                    className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'all' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
-                      }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    onClick={() => setHistoryFilter('completed')}
-                    className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'completed' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
-                      }`}
-                  >
-                    Completed
-                  </button>
-                  <button
-                    onClick={() => setHistoryFilter('cancelled')}
-                    className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'cancelled' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
-                      }`}
-                  >
-                    Cancelled
-                  </button>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-neutral-400 select-none">
+                    {historyTotal === 0
+                      ? '0–0 of 0'
+                      : `${(historyPage - 1) * PAGE_SIZE + 1}–${Math.min(historyPage * PAGE_SIZE, historyTotal)} of ${historyTotal}`}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={historyPage <= 1 || loadingHistory || historyTotal === 0}
+                      aria-label="Previous page"
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleNextPage}
+                      disabled={historyPage >= historyLastPage || Math.min(historyPage * PAGE_SIZE, historyTotal) >= historyTotal || loadingHistory || historyTotal === 0}
+                      aria-label="Next page"
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1029,14 +1107,29 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
               ) : filteredHistory.length > 0 ? (
                 <div className="space-y-3">
                   {filteredHistory.map((ride) => (
-                    <div key={ride.id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
+                    <div
+                      key={ride.id}
+                      onClick={() => {
+                        if (ride.status === 'completed') {
+                          setCompletedSummary(ride);
+                          try {
+                            localStorage.setItem('last_completed_summary', JSON.stringify(ride));
+                          } catch (e) {
+                            console.error('Failed to save completed summary', e);
+                          }
+                        }
+                      }}
+                      className={`flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4 transition-all ${ride.status === 'completed' ? 'cursor-pointer hover:border-sky-500/50 hover:bg-slate-200/50 dark:hover:bg-neutral-900' : ''}`}
+                    >
                       <div className="flex items-center gap-3">
                         <span className="text-xl">{ride.status === 'completed' ? '✅' : '❌'}</span>
                         <div>
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white">
                             {ride.pickup_address} → {ride.dropoff_address}
                           </h4>
-                          <span className="text-[9px] text-slate-500">Customer: {ride.customer?.name || 'User'}</span>
+                          <span className="text-[9px] text-slate-500">
+                            Customer: {ride.customer?.name || 'User'} • {formatDateTime(ride.startedAt || ride.createdAt)} • {calculateRideDuration(ride)}
+                          </span>
                         </div>
                       </div>
                       <div className="text-right">
@@ -1047,6 +1140,33 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
                       </div>
                     </div>
                   ))}
+
+                  {/* Bottom Pagination control */}
+                  {historyTotal > PAGE_SIZE && (
+                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-neutral-900">
+                      <span className="text-xs font-semibold text-slate-600 dark:text-neutral-400 select-none">
+                        {(historyPage - 1) * PAGE_SIZE + 1}–{Math.min(historyPage * PAGE_SIZE, historyTotal)} of {historyTotal}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={handlePrevPage}
+                          disabled={historyPage <= 1 || loadingHistory || historyTotal === 0}
+                          aria-label="Previous page"
+                          className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={handleNextPage}
+                          disabled={historyPage >= historyLastPage || Math.min(historyPage * PAGE_SIZE, historyTotal) >= historyTotal || loadingHistory || historyTotal === 0}
+                          aria-label="Next page"
+                          className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12 text-xs text-neutral-500">No shift trip records match.</div>

@@ -19,7 +19,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 
 const paginate = async (query, model, req, populateOpts = []) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = 15;
+  const limit = parseInt(req.query.limit) || 5;
   const skip = (page - 1) * limit;
 
   let execQuery = model.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
@@ -245,6 +245,9 @@ const store = async (req, res, next) => {
         fare: estimatedFare,
         distance: distanceKm,
         duration: estimatedDuration,
+        estimatedDuration: estimatedDuration,
+        startedAt: null,
+        completedAt: null,
         scheduled_at: scheduled_at ? new Date(scheduled_at) : null
       });
 
@@ -298,8 +301,13 @@ const store = async (req, res, next) => {
 
 const index = async (req, res, next) => {
   try {
+    const query = { customer_id: req.user._id };
+    if (req.query.status && req.query.status !== 'all') {
+      query.status = req.query.status;
+    }
+
     const paginatedRides = await paginate(
-      { customer_id: req.user._id },
+      query,
       Ride,
       req,
       [

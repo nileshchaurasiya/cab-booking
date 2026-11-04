@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
 import { Users, IndianRupee, CheckCircle, RefreshCw, UserMinus, UserCheck, LogOut } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import { getRideDurationDisplay, formatISTDateTime } from '../utils/timeUtils';
 
 export default function AdminDashboard({ user, onLogout }: { user: any; onLogout: () => void }) {
   useEffect(() => { document.title = 'Admin - Indian Cabs'; }, []);
@@ -477,6 +478,9 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                       <td className="py-3.5 pr-2">
                         <div>
                           <span>{ride.pickup_address} → {ride.dropoff_address}</span>
+                          <span className="block text-[10px] text-neutral-500">
+                            {formatISTDateTime(ride.startedAt || ride.created_at || ride.createdAt)} • Duration: {getRideDurationDisplay(ride)}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3.5 pr-2 text-right font-bold text-slate-800 dark:text-white">₹{ride.fare}</td>

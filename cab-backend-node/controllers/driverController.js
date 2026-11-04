@@ -32,7 +32,7 @@ const getRideVehicleTypeForDriver = (driverVehicleType) => {
 
 const paginate = async (query, model, req, populateOpts = []) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = 15;
+  const limit = parseInt(req.query.limit) || 5;
   const skip = (page - 1) * limit;
 
   let execQuery = model.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
@@ -218,47 +218,101 @@ const updateStatus = async (req, res, next) => {
       });
     }
 
-    const ride = await Ride.findOne({
-      _id: req.params.id,
-      driver_id: req.user._id
-    }).populate('payment');
+    const ride = await Ride.findById(req.params.id).populate('payment');
 
     if (!ride) {
       return res.status(404).json({ message: 'Ride not found.' });
     }
 
-    if (['completed', 'cancelled'].includes(ride.status)) {
+    // Validate that the ride belongs to the logged-in driver
+    if (!ride.driver_id || ride.driver_id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized. This ride does not belong to you.' });
+    }
+
+    // Check if ride was cancelled
+    if (ride.status === 'cancelled') {
       return res.status(422).json({
-        message: 'Cannot update the status of a finished or cancelled ride.'
+        message: 'Cannot update the status of a cancelled ride.'
       });
     }
 
-    // Ensure status progression is logical
-    if (status === 'waiting_for_customer' && ride.status !== 'accepted') {
-      return res.status(422).json({ message: 'Invalid status progression. Must be accepted to pick up customer.' });
-    }
-    if (status === 'in_progress' && ride.status !== 'waiting_for_customer') {
-      return res.status(422).json({ message: 'Invalid status progression. Must be waiting for customer to start.' });
-    }
-    if (status === 'completed' && ride.status !== 'in_progress') {
-      return res.status(422).json({ message: 'Cannot complete a ride that has not started.' });
-    }
-
-    ride.status = status;
+    // --- Handling: waiting_for_customer ---
     if (status === 'waiting_for_customer') {
-      ride.pickup_waiting_started_at = new Date();
-    }
-    await ride.save();
-
-    if (status === 'completed') {
-      // Calculate actual ride duration in minutes matching clock minute difference
-      const startTime = ride.pickup_waiting_started_at || ride.driver_accepted_at || ride.createdAt;
-      if (startTime) {
-        const startMin = Math.floor(new Date(startTime).getTime() / 60000);
-        const endMin = Math.floor(Date.now() / 60000);
-        ride.duration = Math.max(1, endMin - startMin);
-        await ride.save();
+      if (ride.status !== 'accepted') {
+        return res.status(422).json({ message: 'Invalid status progression. Must be accepted to pick up customer.' });
       }
+      ride.status = 'waiting_for_customer';
+      if (!ride.pickup_waiting_started_at) {
+        ride.pickup_waiting_started_at = new Date();
+      }
+      await ride.save();
+    }
+
+    // --- Handling: in_progress (Start Ride) ---
+    if (status === 'in_progress') {
+      // Prevent duplicate start actions from overwriting the original timestamp
+      if (ride.status === 'in_progress') {
+        if (!ride.startedAt) {
+          ride.startedAt = new Date();
+          await ride.save();
+        }
+        const populatedRide = await Ride.findById(ride._id).populate(['customer', 'payment']);
+        return res.status(200).json({
+          message: 'Ride is already in progress.',
+          ride: populatedRide
+        });
+      }
+
+      // Validate that the ride is in an accepted / arrived / waiting state
+      if (!['accepted', 'waiting_for_customer', 'arrived'].includes(ride.status)) {
+        return res.status(422).json({
+          message: `Cannot start a ride with status "${ride.status}". Ride must be in accepted state.`
+        });
+      }
+
+      ride.status = 'in_progress';
+      // Save actual start timestamp (prevent overwriting if already exists)
+      if (!ride.startedAt) {
+        ride.startedAt = new Date();
+      }
+      await ride.save();
+    }
+
+    // --- Handling: completed (Complete Ride) ---
+    if (status === 'completed') {
+      // Prevent duplicate completion requests from overwriting the original timestamp
+      if (ride.status === 'completed') {
+        if (!ride.completedAt) {
+          ride.completedAt = new Date();
+          await ride.save();
+        }
+        const populatedRide = await Ride.findById(ride._id).populate(['customer', 'payment']);
+        return res.status(200).json({
+          message: 'Ride is already completed.',
+          ride: populatedRide
+        });
+      }
+
+      // Validate that the ride is currently in progress
+      if (ride.status !== 'in_progress') {
+        return res.status(422).json({
+          message: `Cannot complete a ride with status "${ride.status}". Ride must be in progress.`
+        });
+      }
+
+      ride.status = 'completed';
+      // Save actual completion timestamp
+      if (!ride.completedAt) {
+        ride.completedAt = new Date();
+      }
+
+      // Calculate actual ride duration using JavaScript timestamps: completedAt.getTime() - startedAt.getTime()
+      const startMs = (ride.startedAt || ride.pickup_waiting_started_at || ride.driver_accepted_at || ride.createdAt).getTime();
+      const endMs = ride.completedAt.getTime();
+      const actualMinutes = Math.max(1, Math.round((endMs - startMs) / 60000));
+      ride.duration = actualMinutes;
+
+      await ride.save();
 
       // Free driver
       await DriverDetail.findOneAndUpdate(
@@ -325,10 +379,27 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+const startRide = async (req, res, next) => {
+  req.body = req.body || {};
+  req.body.status = 'in_progress';
+  return updateStatus(req, res, next);
+};
+
+const completeRide = async (req, res, next) => {
+  req.body = req.body || {};
+  req.body.status = 'completed';
+  return updateStatus(req, res, next);
+};
+
 const rideHistory = async (req, res, next) => {
   try {
+    const query = { driver_id: req.user._id };
+    if (req.query.status && req.query.status !== 'all') {
+      query.status = req.query.status;
+    }
+
     const paginatedRides = await paginate(
-      { driver_id: req.user._id },
+      query,
       Ride,
       req,
       ['customer', 'payment', 'reviews']
@@ -575,6 +646,8 @@ module.exports = {
   rideRequests,
   acceptRide,
   updateStatus,
+  startRide,
+  completeRide,
   cancelRide,
   rideHistory,
   registerVehicle,

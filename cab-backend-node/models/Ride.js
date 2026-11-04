@@ -85,7 +85,19 @@ const rideSchema = new mongoose.Schema({
   },
   duration: {
     type: Number,
-    required: true
+    required: false
+  },
+  estimatedDuration: {
+    type: Number,
+    default: null
+  },
+  startedAt: {
+    type: Date,
+    default: null
+  },
+  completedAt: {
+    type: Date,
+    default: null
   },
   scheduled_at: {
     type: Date,
@@ -93,6 +105,19 @@ const rideSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Virtual aliases for snake_case compatibility
+rideSchema.virtual('started_at').get(function() {
+  return this.startedAt;
+});
+
+rideSchema.virtual('completed_at').get(function() {
+  return this.completedAt;
+});
+
+rideSchema.virtual('estimated_duration').get(function() {
+  return this.estimatedDuration;
 });
 
 // Virtual populates

@@ -67,6 +67,10 @@ app.post('/api/driver/location', restrictTo('driver'), driverController.updateLo
 app.get('/api/driver/rides/requests', restrictTo('driver'), driverController.rideRequests);
 app.post('/api/driver/rides/:id/accept', restrictTo('driver'), driverController.acceptRide);
 app.post('/api/driver/rides/:id/status', restrictTo('driver'), driverController.updateStatus);
+app.post('/api/driver/rides/:id/start', restrictTo('driver'), driverController.startRide);
+app.put('/api/driver/rides/:id/start', restrictTo('driver'), driverController.startRide);
+app.post('/api/driver/rides/:id/complete', restrictTo('driver'), driverController.completeRide);
+app.put('/api/driver/rides/:id/complete', restrictTo('driver'), driverController.completeRide);
 app.post('/api/driver/rides/:id/cancel', restrictTo('driver'), driverController.cancelRide);
 app.get('/api/driver/rides', restrictTo('driver'), driverController.rideHistory);
 app.post('/api/driver/vehicle', restrictTo('driver'), driverController.registerVehicle);
