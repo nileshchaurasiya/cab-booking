@@ -5,7 +5,7 @@ const DriverDetail = require('../models/DriverDetail');
 
 const paginate = async (query, model, req, populateOpts = []) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = 15;
+  const limit = parseInt(req.query.limit) || 5;
   const skip = (page - 1) * limit;
 
   let execQuery = model.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
@@ -88,7 +88,7 @@ const users = async (req, res, next) => {
       query.role = role;
     }
 
-    if (status) {
+    if (status && status !== 'all') {
       query.status = status;
     }
 
@@ -196,7 +196,7 @@ const rides = async (req, res, next) => {
 
     const query = {};
 
-    if (status) {
+    if (status && status !== 'all') {
       query.status = status;
     }
 

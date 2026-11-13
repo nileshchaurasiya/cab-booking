@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api';
-import { Users, IndianRupee, CheckCircle, RefreshCw, UserMinus, UserCheck, LogOut } from 'lucide-react';
+import { Users, IndianRupee, CheckCircle, RefreshCw, UserMinus, UserCheck, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { getRideDurationDisplay, formatISTDateTime } from '../utils/timeUtils';
 
@@ -21,9 +21,18 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
   const [activeBookings, setActiveBookings] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
 
+  const PAGE_SIZE = 5;
   const [historyRides, setHistoryRides] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyFilter, setHistoryFilter] = useState<'all' | 'completed' | 'cancelled'>('all');
+  const [historyPage, setHistoryPage] = useState<number>(1);
+  const [historyTotal, setHistoryTotal] = useState<number>(0);
+  const [historyLastPage, setHistoryLastPage] = useState<number>(1);
+
+  const historyPageRef = useRef(historyPage);
+  const historyFilterRef = useRef(historyFilter);
+  useEffect(() => { historyPageRef.current = historyPage; }, [historyPage]);
+  useEffect(() => { historyFilterRef.current = historyFilter; }, [historyFilter]);
 
   // Toast messages
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' }[]>([]);
@@ -41,14 +50,14 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
     fetchStats();
     fetchDrivers();
     fetchActiveBookings();
-    fetchHistory();
+    fetchHistory(1, 'all', true);
 
     // Auto-refresh interval (every 2 seconds)
     const interval = setInterval(() => {
       fetchStats();
       fetchDrivers(false); // false = don't show loading spinner
       fetchActiveBookings(false);
-      fetchHistory(false);
+      fetchHistory(historyPageRef.current, historyFilterRef.current, false);
     }, 2000);
 
     return () => clearInterval(interval);
@@ -83,9 +92,9 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
   const fetchActiveBookings = async (showLoader = true) => {
     if (showLoader) setLoadingBookings(true);
     try {
-      const res = await apiRequest('/admin/rides');
+      const res = await apiRequest('/admin/rides?limit=100');
       // Show rides that are in progress (requested, accepted, arrived, in_progress)
-      const list = res.data || [];
+      const list = Array.isArray(res) ? res : (res.data || []);
       const active = list.filter((r: any) => ['requested', 'accepted', 'arrived', 'in_progress'].includes(r.status));
       setActiveBookings(active);
     } catch (err: any) {
@@ -95,17 +104,46 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
     }
   };
 
-  const fetchHistory = async (showLoader = true) => {
+  const fetchHistory = async (page: number = historyPageRef.current, filter: string = historyFilterRef.current, showLoader = true) => {
     if (showLoader) setLoadingHistory(true);
     try {
-      const res = await apiRequest('/admin/rides');
-      setHistoryRides(res.data || []);
+      const statusParam = filter !== 'all' ? `&status=${filter}` : '';
+      const res = await apiRequest(`/admin/rides?page=${page}&limit=${PAGE_SIZE}${statusParam}`);
+      if (page !== historyPageRef.current || filter !== historyFilterRef.current) {
+        return;
+      }
+      const rides = Array.isArray(res) ? res : (res.data || []);
+      const total = typeof res.total === 'number' ? res.total : rides.length;
+      const lastPage = typeof res.last_page === 'number' ? res.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+      setHistoryRides(rides);
+      setHistoryTotal(total);
+      setHistoryPage(res.current_page || page);
+      setHistoryLastPage(lastPage);
     } catch (err: any) {
       console.error(err);
     } finally {
-      setLoadingHistory(false);
+      if (showLoader) setLoadingHistory(false);
     }
   };
+
+  const handleFilterChange = (newFilter: 'all' | 'completed' | 'cancelled') => {
+    historyFilterRef.current = newFilter;
+    historyPageRef.current = 1;
+    setHistoryFilter(newFilter);
+    setHistoryPage(1);
+    fetchHistory(1, newFilter, true);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > historyLastPage) return;
+    historyPageRef.current = newPage;
+    setHistoryPage(newPage);
+    fetchHistory(newPage, historyFilter, true);
+  };
+
+  const handlePrevPage = () => handlePageChange(historyPage - 1);
+  const handleNextPage = () => handlePageChange(historyPage + 1);
 
   const handleToggleUserStatus = async (userId: number, currentStatus: string) => {
     const nextStatus = currentStatus === 'active' ? 'suspended' : 'active';
@@ -140,14 +178,11 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
     fetchStats();
     fetchDrivers();
     fetchActiveBookings();
-    fetchHistory();
+    fetchHistory(historyPage, historyFilter, true);
     addToast('Admin console synchronized.');
   };
 
-  const filteredHistory = historyRides.filter((ride) => {
-    if (historyFilter === 'all') return true;
-    return ride.status === historyFilter;
-  });
+  const filteredHistory = historyRides;
 
   return (
     <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
@@ -313,7 +348,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                         </td>
                         <td className="py-3.5 pr-2">
                           {drv.active_trip || drv.shift_status === 'on_trip' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-sky-500/10 text-sky-400 border border-sky-500/25" title={`Active Ride #${drv.active_trip?.id || ''}`}>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-sky-500/10 text-sky-400 border border-sky-500/25" title={drv.active_trip ? `Active Ride: ${drv.active_trip.pickup_address} → ${drv.active_trip.dropoff_address}` : 'On Trip'}>
                               <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
                               On Trip (In Ride)
                             </span>
@@ -418,29 +453,57 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
         {/* Completed Rides and transactions list */}
         <div className="bg-white dark:bg-[#050505] border border-slate-200 dark:border-neutral-900 rounded-3xl p-6 shadow-sm dark:shadow-xl space-y-4">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-slate-100 dark:border-neutral-900 pb-4 gap-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Transactions & Ride History</h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => setHistoryFilter('all')}
-                className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'all' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
-                  }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setHistoryFilter('completed')}
-                className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'completed' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
-                  }`}
-              >
-                Completed
-              </button>
-              <button
-                onClick={() => setHistoryFilter('cancelled')}
-                className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'cancelled' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
-                  }`}
-              >
-                Cancelled
-              </button>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Transactions & Ride History</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => handleFilterChange('all')}
+                  className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'all' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
+                    }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => handleFilterChange('completed')}
+                  className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'completed' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
+                    }`}
+                >
+                  Completed
+                </button>
+                <button
+                  onClick={() => handleFilterChange('cancelled')}
+                  className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'cancelled' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400'
+                    }`}
+                >
+                  Cancelled
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-slate-600 dark:text-neutral-400 select-none">
+                {historyTotal === 0
+                  ? '0–0 of 0'
+                  : `${(historyPage - 1) * PAGE_SIZE + 1}–${Math.min(historyPage * PAGE_SIZE, historyTotal)} of ${historyTotal}`}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={historyPage <= 1 || loadingHistory || historyTotal === 0}
+                  aria-label="Previous page"
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleNextPage}
+                  disabled={historyPage >= historyLastPage || Math.min(historyPage * PAGE_SIZE, historyTotal) >= historyTotal || loadingHistory || historyTotal === 0}
+                  aria-label="Next page"
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -451,7 +514,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-neutral-900 text-slate-500 dark:text-slate-400 font-bold pb-2">
-                    <th className="pb-3 pr-2">ID / Customer</th>
+                    <th className="pb-3 pr-2">Customer</th>
                     <th className="pb-3 pr-2">Driver</th>
                     <th className="pb-3 pr-2">Route Details</th>
                     <th className="pb-3 pr-2 text-right">Fare</th>
@@ -463,7 +526,10 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                   {filteredHistory.map((ride) => (
                     <tr key={ride.id} className="text-slate-600 dark:text-neutral-350">
                       <td className="py-3.5 pr-2">
-                        <strong className="text-slate-800 dark:text-white block">#{ride.id} - {ride.customer?.name}</strong>
+                        <strong className="text-slate-800 dark:text-white block">{ride.customer?.name || 'Customer'}</strong>
+                        {ride.customer?.phone && (
+                          <span className="text-[10px] text-neutral-500 block">{ride.customer.phone}</span>
+                        )}
                       </td>
                       <td className="py-3.5 pr-2">
                         {ride.driver ? (
@@ -497,6 +563,33 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
                   ))}
                 </tbody>
               </table>
+
+              {/* Bottom Pagination control */}
+              {historyTotal > PAGE_SIZE && (
+                <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-neutral-900">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-neutral-400 select-none">
+                    {`${(historyPage - 1) * PAGE_SIZE + 1}–${Math.min(historyPage * PAGE_SIZE, historyTotal)} of ${historyTotal}`}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={historyPage <= 1 || loadingHistory || historyTotal === 0}
+                      aria-label="Previous page"
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleNextPage}
+                      disabled={historyPage >= historyLastPage || Math.min(historyPage * PAGE_SIZE, historyTotal) >= historyTotal || loadingHistory || historyTotal === 0}
+                      aria-label="Next page"
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-12 text-xs text-neutral-500">No shift log transactions found.</div>

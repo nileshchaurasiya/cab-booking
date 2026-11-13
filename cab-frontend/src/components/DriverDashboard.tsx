@@ -162,6 +162,11 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   const [historyTotal, setHistoryTotal] = useState<number>(0);
   const [historyLastPage, setHistoryLastPage] = useState<number>(1);
 
+  const historyPageRef = React.useRef(historyPage);
+  const historyFilterRef = React.useRef(historyFilter);
+  useEffect(() => { historyPageRef.current = historyPage; }, [historyPage]);
+  useEffect(() => { historyFilterRef.current = historyFilter; }, [historyFilter]);
+
   // Modals state
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -329,15 +334,24 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   const fetchHistory = async (showLoading = false) => {
     if (showLoading) setLoadingHistory(true);
     try {
-      const statusParam = historyFilter !== 'all' ? `&status=${historyFilter}` : '';
-      const res = await apiRequest(`/driver/rides?page=${historyPage}&limit=${PAGE_SIZE}${statusParam}`);
+      const page = historyPageRef.current;
+      const filter = historyFilterRef.current;
+      const statusParam = filter !== 'all' ? `&status=${filter}` : '';
+      const res = await apiRequest(`/driver/rides?page=${page}&limit=${PAGE_SIZE}${statusParam}`);
       const rides = Array.isArray(res) ? res : (res.data || []);
-      const total = typeof res.total === 'number' ? res.total : rides.length;
-      const lastPage = typeof res.last_page === 'number' ? res.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE));
+      const total = typeof res.total === 'number'
+        ? res.total
+        : (res.meta && typeof res.meta.total === 'number' ? res.meta.total : rides.length);
+      const lastPage = typeof res.last_page === 'number'
+        ? res.last_page
+        : (res.meta && typeof res.meta.last_page === 'number' ? res.meta.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE)));
+      const currentPage = typeof res.current_page === 'number'
+        ? res.current_page
+        : (res.meta && typeof res.meta.current_page === 'number' ? res.meta.current_page : page);
 
       setHistoryRides(rides);
       setHistoryTotal(total);
-      setHistoryPage(res.current_page || historyPage);
+      setHistoryPage(currentPage);
       setHistoryLastPage(lastPage);
 
       // Summarize stats from ALL completed rides (separate unfiltered request for stats)
@@ -369,18 +383,25 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
     }
   };
 
-  const fetchTripHistory = async (page: number = historyPage, filter: string = historyFilter, showLoader = false) => {
+  const fetchTripHistory = async (page: number = historyPageRef.current, filter: string = historyFilterRef.current, showLoader = false) => {
     if (showLoader) setLoadingHistory(true);
     try {
       const statusParam = filter !== 'all' ? `&status=${filter}` : '';
       const res = await apiRequest(`/driver/rides?page=${page}&limit=${PAGE_SIZE}${statusParam}`);
       const rides = Array.isArray(res) ? res : (res.data || []);
-      const total = typeof res.total === 'number' ? res.total : rides.length;
-      const lastPage = typeof res.last_page === 'number' ? res.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE));
+      const total = typeof res.total === 'number'
+        ? res.total
+        : (res.meta && typeof res.meta.total === 'number' ? res.meta.total : rides.length);
+      const lastPage = typeof res.last_page === 'number'
+        ? res.last_page
+        : (res.meta && typeof res.meta.last_page === 'number' ? res.meta.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE)));
+      const currentPage = typeof res.current_page === 'number'
+        ? res.current_page
+        : (res.meta && typeof res.meta.current_page === 'number' ? res.meta.current_page : page);
 
       setHistoryRides(rides);
       setHistoryTotal(total);
-      setHistoryPage(res.current_page || page);
+      setHistoryPage(currentPage);
       setHistoryLastPage(lastPage);
     } catch (err: any) {
       console.error('Failed to fetch driver trip history', err);

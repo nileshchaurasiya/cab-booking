@@ -89,7 +89,12 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
   const [historyPage, setHistoryPage] = useState<number>(1);
   const [historyTotal, setHistoryTotal] = useState<number>(0);
   const [historyLastPage, setHistoryLastPage] = useState<number>(1);
-  const [visibleWalletTxCount, setVisibleWalletTxCount] = useState<number>(5);
+
+  // Wallet list & Pagination
+  const [walletPage, setWalletPage] = useState<number>(1);
+  const [walletTotal, setWalletTotal] = useState<number>(0);
+  const [walletLastPage, setWalletLastPage] = useState<number>(1);
+  const [loadingWallet, setLoadingWallet] = useState(false);
   const [waitingSeconds, setWaitingSeconds] = useState(0);
   const [etaSeconds, setEtaSeconds] = useState(0);
 
@@ -161,20 +166,38 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
   };
 
   // Fetch isolated wallet from backend API
-  const fetchWallet = async () => {
+  const fetchWallet = async (page: number = walletPage, showLoader = false) => {
     if (!user?.id) return;
+    if (showLoader) setLoadingWallet(true);
     try {
-      const data = await apiRequest('/customer/wallet');
+      const data = await apiRequest(`/customer/wallet?page=${page}&limit=${PAGE_SIZE}`);
       if (data && typeof data.balance === 'number') {
         setWalletBalance(data.balance);
         setWalletTransactions(data.transactions || []);
+        const total = typeof data.total === 'number' ? data.total : (data.transactions ? data.transactions.length : 0);
+        const lastPage = typeof data.last_page === 'number' ? data.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE));
+        setWalletTotal(total);
+        setWalletPage(data.current_page || page);
+        setWalletLastPage(lastPage);
+
         localStorage.setItem(`customer_wallet_balance_${user.id}`, data.balance.toFixed(2));
         localStorage.setItem(`customer_wallet_transactions_${user.id}`, JSON.stringify(data.transactions || []));
       }
     } catch (err) {
       console.error('Failed to load wallet from API', err);
+    } finally {
+      if (showLoader) setLoadingWallet(false);
     }
   };
+
+  const handleWalletPageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > walletLastPage) return;
+    setWalletPage(newPage);
+    fetchWallet(newPage, true);
+  };
+
+  const handleWalletPrevPage = () => handleWalletPageChange(walletPage - 1);
+  const handleWalletNextPage = () => handleWalletPageChange(walletPage + 1);
 
   // Switch/sync state whenever active user changes
   useEffect(() => {
@@ -484,8 +507,13 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
       if (typeof res.balance === 'number') {
         setWalletBalance(res.balance);
         setWalletTransactions(res.transactions || []);
+        const total = typeof res.total === 'number' ? res.total : (res.transactions ? res.transactions.length : 0);
+        const lastPage = typeof res.last_page === 'number' ? res.last_page : Math.max(1, Math.ceil(total / PAGE_SIZE));
+        setWalletTotal(total);
+        setWalletPage(res.current_page || 1);
+        setWalletLastPage(lastPage);
       } else {
-        fetchWallet();
+        fetchWallet(1, true);
       }
       addToast(res.message || `Successfully recharged ₹${amount.toFixed(2)} to your wallet!`);
       setShowRechargeModal(false);
@@ -755,11 +783,10 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                   <button
                     type="submit"
                     disabled={bookingRide || !selectedCab}
-                    className={`w-full py-3.5 px-4 rounded-2xl font-bold shadow-lg transition-all duration-200 mt-4 ${
-                      !selectedCab
+                    className={`w-full py-3.5 px-4 rounded-2xl font-bold shadow-lg transition-all duration-200 mt-4 ${!selectedCab
                         ? 'bg-slate-200 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
                         : 'bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black hover:-translate-y-0.5 cursor-pointer'
-                    }`}
+                      }`}
                   >
                     {bookingRide ? 'Requesting Ride...' : '🚕 Book Cab Now'}
                   </button>
@@ -1117,31 +1144,28 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                   <div className="flex items-center gap-2 mb-3">
                     <button
                       onClick={() => handleFilterChange('all')}
-                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
-                        historyFilter === 'all'
+                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'all'
                           ? 'bg-sky-500 border-sky-500 text-white'
                           : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                      }`}
+                        }`}
                     >
                       All
                     </button>
                     <button
                       onClick={() => handleFilterChange('completed')}
-                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
-                        historyFilter === 'completed'
+                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'completed'
                           ? 'bg-sky-500 border-sky-500 text-white'
                           : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                      }`}
+                        }`}
                     >
                       Completed
                     </button>
                     <button
                       onClick={() => handleFilterChange('cancelled')}
-                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${
-                        historyFilter === 'cancelled'
+                      className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'cancelled'
                           ? 'bg-sky-500 border-sky-500 text-white'
                           : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                      }`}
+                        }`}
                     >
                       Cancelled
                     </button>
@@ -1233,7 +1257,7 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                       {historyTotal > PAGE_SIZE && (
                         <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-neutral-900">
                           <span className="text-xs font-semibold text-slate-600 dark:text-neutral-400 select-none">
-                            {(historyPage - 1) * PAGE_SIZE + 1}–{Math.min(historyPage * PAGE_SIZE, historyTotal)} of ${historyTotal}
+                            {`${(historyPage - 1) * PAGE_SIZE + 1}–${Math.min(historyPage * PAGE_SIZE, historyTotal)} of ${historyTotal}`}
                           </span>
                           <div className="flex items-center gap-1.5">
                             <button
@@ -1263,22 +1287,51 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
               ) : (
                 /* Wallet Transactions log */
                 <div>
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
                     <div>
                       <h2 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight mb-1">Wallet Transactions</h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400">View your deposits, payments, and refunds</p>
                     </div>
+
+                    {/* Wallet Transactions Pagination */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-slate-600 dark:text-neutral-400 select-none">
+                        {walletTotal === 0
+                          ? '0–0 of 0'
+                          : `${(walletPage - 1) * PAGE_SIZE + 1}–${Math.min(walletPage * PAGE_SIZE, walletTotal)} of ${walletTotal}`}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={handleWalletPrevPage}
+                          disabled={walletPage <= 1 || loadingWallet || walletTotal === 0}
+                          aria-label="Previous page"
+                          className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={handleWalletNextPage}
+                          disabled={walletPage >= walletLastPage || Math.min(walletPage * PAGE_SIZE, walletTotal) >= walletTotal || loadingWallet || walletTotal === 0}
+                          aria-label="Next page"
+                          className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  {walletTransactions.length > 0 ? (
+                  {loadingWallet ? (
+                    <div className="text-center py-6 text-xs text-neutral-500">Loading transactions...</div>
+                  ) : walletTransactions.length > 0 ? (
                     <div className="space-y-3">
-                      {walletTransactions.slice(0, visibleWalletTxCount).map((tx) => {
+                      {walletTransactions.map((tx) => {
                         const isCredit = (tx.type || '').toLowerCase() === 'deposit' || (tx.type || '').toLowerCase() === 'refund';
                         const displayDate = formatDateTime(tx.created_at || tx.createdAt || tx.date);
                         const amountVal = parseFloat(tx.amount || 0);
 
                         return (
-                          <div key={tx.id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
+                          <div key={tx.id || tx._id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-neutral-900 rounded-2xl p-4">
                             <div>
                               <h4 className="text-xs font-bold text-slate-800 dark:text-white">{tx.description}</h4>
                               <span className="text-[9px] text-slate-500">{displayDate}</span>
@@ -1290,14 +1343,30 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                         );
                       })}
 
-                      {walletTransactions.length > visibleWalletTxCount && (
-                        <div className="text-center pt-2">
-                          <button
-                            onClick={() => setVisibleWalletTxCount((prev) => prev + 5)}
-                            className="px-4 py-2 text-xs font-bold bg-slate-200 dark:bg-neutral-900 border border-slate-300 dark:border-neutral-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-neutral-800 transition-all cursor-pointer"
-                          >
-                            Load More Transactions
-                          </button>
+                      {/* Bottom Pagination control */}
+                      {walletTotal > PAGE_SIZE && (
+                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-neutral-900">
+                          <span className="text-xs font-semibold text-slate-600 dark:text-neutral-400 select-none">
+                            {`${(walletPage - 1) * PAGE_SIZE + 1}–${Math.min(walletPage * PAGE_SIZE, walletTotal)} of ${walletTotal}`}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={handleWalletPrevPage}
+                              disabled={walletPage <= 1 || loadingWallet || walletTotal === 0}
+                              aria-label="Previous page"
+                              className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={handleWalletNextPage}
+                              disabled={walletPage >= walletLastPage || Math.min(walletPage * PAGE_SIZE, walletTotal) >= walletTotal || loadingWallet || walletTotal === 0}
+                              aria-label="Next page"
+                              className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

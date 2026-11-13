@@ -47,10 +47,14 @@ const paginate = async (query, model, req, populateOpts = []) => {
     model.countDocuments(query)
   ]);
 
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = Math.ceil(total / limit) || 1;
 
   return {
+    current_page: page,
     data,
+    total,
+    per_page: limit,
+    last_page: totalPages,
     meta: {
       current_page: page,
       last_page: totalPages,

@@ -10,13 +10,25 @@ const getWallet = async (req, res, next) => {
       wallet = await Wallet.create({ user_id: userId, balance: 0 });
     }
 
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+
+    const total = await WalletTransaction.countDocuments({ user_id: userId });
     const transactions = await WalletTransaction.find({ user_id: userId })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .skip(skip)
+      .limit(limit);
+
+    const lastPage = Math.ceil(total / limit) || 1;
 
     res.status(200).json({
       balance: parseFloat(wallet.balance.toFixed(2)),
-      transactions
+      transactions,
+      total,
+      current_page: page,
+      last_page: lastPage,
+      per_page: limit
     });
   } catch (err) {
     next(err);
@@ -62,15 +74,27 @@ const recharge = async (req, res, next) => {
       description: 'Wallet Recharge Deposit'
     });
 
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+
+    const total = await WalletTransaction.countDocuments({ user_id: userId });
     const transactions = await WalletTransaction.find({ user_id: userId })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .skip(skip)
+      .limit(limit);
+
+    const lastPage = Math.ceil(total / limit) || 1;
 
     res.status(200).json({
       message: `Successfully recharged ₹${amount.toFixed(2)} to your wallet!`,
       balance: wallet.balance,
       transaction,
-      transactions
+      transactions,
+      total,
+      current_page: page,
+      last_page: lastPage,
+      per_page: limit
     });
   } catch (err) {
     next(err);
