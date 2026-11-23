@@ -1161,33 +1161,6 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
                       </div>
                     </div>
                   ))}
-
-                  {/* Bottom Pagination control */}
-                  {historyTotal > PAGE_SIZE && (
-                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-neutral-900">
-                      <span className="text-xs font-semibold text-slate-600 dark:text-neutral-400 select-none">
-                        {(historyPage - 1) * PAGE_SIZE + 1}–{Math.min(historyPage * PAGE_SIZE, historyTotal)} of {historyTotal}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={handlePrevPage}
-                          disabled={historyPage <= 1 || loadingHistory || historyTotal === 0}
-                          aria-label="Previous page"
-                          className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={handleNextPage}
-                          disabled={historyPage >= historyLastPage || Math.min(historyPage * PAGE_SIZE, historyTotal) >= historyTotal || loadingHistory || historyTotal === 0}
-                          aria-label="Next page"
-                          className="p-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="text-center py-12 text-xs text-neutral-500">No shift trip records match.</div>
