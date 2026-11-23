@@ -784,11 +784,11 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                     type="submit"
                     disabled={bookingRide || !selectedCab}
                     className={`w-full py-3.5 px-4 rounded-2xl font-bold shadow-lg transition-all duration-200 mt-4 ${!selectedCab
-                        ? 'bg-slate-200 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
-                        : 'bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black hover:-translate-y-0.5 cursor-pointer'
+                      ? 'bg-slate-200 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
+                      : 'bg-sky-600 hover:bg-sky-700 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black hover:-translate-y-0.5 cursor-pointer'
                       }`}
                   >
-                    {bookingRide ? 'Requesting Ride...' : '🚕 Book Cab Now'}
+                    {bookingRide ? 'Requesting Ride...' : 'Book Cab Now'}
                   </button>
                 </form>
               </div>
@@ -1145,8 +1145,8 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                     <button
                       onClick={() => handleFilterChange('all')}
                       className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'all'
-                          ? 'bg-sky-500 border-sky-500 text-white'
-                          : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                        ? 'bg-sky-500 border-sky-500 text-white'
+                        : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                         }`}
                     >
                       All
@@ -1154,8 +1154,8 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                     <button
                       onClick={() => handleFilterChange('completed')}
                       className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'completed'
-                          ? 'bg-sky-500 border-sky-500 text-white'
-                          : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                        ? 'bg-sky-500 border-sky-500 text-white'
+                        : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                         }`}
                     >
                       Completed
@@ -1163,8 +1163,8 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                     <button
                       onClick={() => handleFilterChange('cancelled')}
                       className={`text-[10px] px-3 py-1 rounded-lg font-bold border transition-all cursor-pointer ${historyFilter === 'cancelled'
-                          ? 'bg-sky-500 border-sky-500 text-white'
-                          : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                        ? 'bg-sky-500 border-sky-500 text-white'
+                        : 'bg-transparent border-slate-200 dark:border-neutral-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                         }`}
                     >
                       Cancelled
