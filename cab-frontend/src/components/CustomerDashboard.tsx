@@ -1067,7 +1067,7 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
                   {/* Waiting Timer display for Customer */}
                   {activeRide.status === 'waiting_for_customer' && (
                     <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl p-4 text-center text-xs space-y-1">
-                      <span className="text-[10px] text-amber-400/80 block uppercase font-bold tracking-wider font-bold">Waiting time:</span>
+                      <span className="text-[10px] text-amber-400/80 block uppercase font-bold tracking-wider font-bold">The driver has arrived at your pickup location:</span>
                       <div className="text-2xl font-mono font-bold tracking-widest">{formatTime(waitingSeconds)}</div>
                     </div>
                   )}
