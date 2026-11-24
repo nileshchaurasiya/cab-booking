@@ -552,7 +552,7 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
   });
 
   return (
-    <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
+    <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300 overscroll-y-none">
 
       {/* Toast Notification Banner Container */}
       <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 pointer-events-none items-center">

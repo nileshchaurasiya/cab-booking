@@ -1,3 +1,36 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    overscroll-behavior-y: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior: none;
+    min-height: 100%;
+  }
+
+  html {
+    background-color: #f8fafc; /* Tailwind slate-50 */
+    color: #0f172a; /* Tailwind slate-900 */
+  }
+
+  html.dark {
+    background-color: #000000; /* Dark mode pure black */
+    color: #f1f5f9; /* Tailwind slate-100 */
+  }
+
+  body {
+    background-color: inherit;
+    color: inherit;
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+}

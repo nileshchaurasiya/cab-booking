@@ -607,7 +607,7 @@ export default function DriverDashboard({ user: initialUser, onLogout }: { user:
   const filteredHistory = historyRides;
 
   return (
-    <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
+    <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300 overscroll-y-none">
 
       {/* Toast Notification Container */}
       <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full items-center">

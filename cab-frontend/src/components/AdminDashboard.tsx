@@ -185,7 +185,7 @@ export default function AdminDashboard({ user, onLogout }: { user: any; onLogout
   const filteredHistory = historyRides;
 
   return (
-    <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
+    <div className="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300 overscroll-y-none">
 
       {/* Header / Navbar */}
       <header className="border-b border-slate-200 dark:border-neutral-900 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
