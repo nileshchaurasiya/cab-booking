@@ -4,7 +4,6 @@ import Register from './components/Register';
 import CustomerDashboard from './components/CustomerDashboard';
 import DriverDashboard from './components/DriverDashboard';
 import AdminDashboard from './components/AdminDashboard';
-import './App.css';
 import { LogoutModal } from './components/LogoutModal';
 import { useState } from 'react';
 
