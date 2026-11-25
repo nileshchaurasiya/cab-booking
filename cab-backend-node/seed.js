@@ -65,7 +65,7 @@ const seedDatabase = async () => {
     const admin = new User({
       name: 'Super Admin',
       email: 'admin@cab.com',
-      phone: '1111111111',
+      phone: '9265027309',
       password: 'password123', // Will be hashed via pre-save hook
       role: 'admin',
       status: 'active'
