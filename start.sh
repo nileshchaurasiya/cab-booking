@@ -9,10 +9,6 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# Determine which backend to start ('node' by default, or 'php' / 'mysql' if passed as argument)
-BACKEND_CHOICE="${1:-node}"
-BACKEND_CHOICE=$(echo "$BACKEND_CHOICE" | tr '[:upper:]' '[:lower:]')
-
 echo -e "\n${BLUE}=================================================${NC}"
 echo -e "${BOLD}${GREEN}      Starting Cab Booking System Servers        ${NC}"
 echo -e "${BLUE}=================================================${NC}\n"
@@ -42,45 +38,22 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
-# 1. START BACKEND SERVER
-if [ "$BACKEND_CHOICE" = "php" ] || [ "$BACKEND_CHOICE" = "laravel" ] || [ "$BACKEND_CHOICE" = "mysql" ]; then
-    echo -e "${BLUE}[1/2] Starting PHP Laravel Backend (MySQL)...${NC}"
-    
-    # Check MySQL daemon
-    if ! nc -z -w 1 127.0.0.1 3306 2>/dev/null; then
-        echo -e "${YELLOW}MySQL is not running. Attempting to start via Homebrew...${NC}"
-        brew services start mysql 2>/dev/null
-        sleep 2
-    fi
+# 1. START BACKEND SERVER (Node.js + MongoDB)
+echo -e "${BLUE}[1/2] Starting Node.js Backend (MongoDB)...${NC}"
 
-    PHP_DIR="cab-backend-php"
-    if [ ! -d "$PHP_DIR" ] && [ -d "../cab-booking-php/cab-backend-php" ]; then
-        PHP_DIR="../cab-booking-php/cab-backend-php"
-    fi
-
-    cd "$PHP_DIR" || { echo -e "${RED}Failed to enter cab-backend-php directory${NC}"; exit 1; }
-    php artisan serve --host=0.0.0.0 --port=8000 &
-    BACKEND_PID=$!
-    cd - >/dev/null 2>&1
-    BACKEND_NAME="Laravel PHP (MySQL on Port 3306)"
-else
-    echo -e "${BLUE}[1/2] Starting Node.js Backend (MongoDB)...${NC}"
-    
-    # Check MongoDB daemon
-    if ! nc -z -w 1 127.0.0.1 27017 2>/dev/null; then
-        echo -e "${YELLOW}MongoDB is not running. Attempting to start via Homebrew...${NC}"
-        brew services start mongodb-community 2>/dev/null
-        sleep 2
-    fi
-
-    cd cab-backend-node || { echo -e "${RED}Failed to enter cab-backend-node directory${NC}"; exit 1; }
-    npm run dev &
-    BACKEND_PID=$!
-    cd ..
-    BACKEND_NAME="Node.js Express (MongoDB on Port 27017)"
+# Check MongoDB daemon
+if ! nc -z -w 1 127.0.0.1 27017 2>/dev/null; then
+    echo -e "${YELLOW}MongoDB is not running. Attempting to start via Homebrew...${NC}"
+    brew services start mongodb-community 2>/dev/null
+    sleep 2
 fi
 
-# 2. START FRONTEND SERVER
+cd cab-backend-node || { echo -e "${RED}Failed to enter cab-backend-node directory${NC}"; exit 1; }
+npm run dev &
+BACKEND_PID=$!
+cd ..
+
+# 2. START FRONTEND SERVER (React + Vite)
 echo -e "${BLUE}[2/2] Starting React Vite Frontend...${NC}"
 cd cab-frontend || { echo -e "${RED}Failed to enter cab-frontend directory${NC}"; kill "$BACKEND_PID" 2>/dev/null; exit 1; }
 npm run dev &
@@ -91,7 +64,7 @@ sleep 1
 
 echo -e "\n${GREEN}=================================================${NC}"
 echo -e "${BOLD}${CYAN}SERVER LOGS & ACTIVE STATUS:${NC}"
-echo -e "  - ${BOLD}Backend:${NC}  ${GREEN}● $BACKEND_NAME${NC}"
+echo -e "  - ${BOLD}Backend:${NC}  ${GREEN}● Node.js Express (MongoDB on Port 27017)${NC}"
 echo -e "              URL: ${CYAN}http://localhost:8000/api${NC}"
 echo -e "  - ${BOLD}Frontend:${NC} ${GREEN}● React Vite${NC}"
 echo -e "              URL: ${CYAN}http://localhost:5173${NC}"
