@@ -560,8 +560,8 @@ export default function CustomerDashboard({ user: initialUser, onLogout }: { use
           <div
             key={toast.id}
             className={`pointer-events-auto p-4 rounded-xl shadow-lg border transition-all duration-300 text-xs font-semibold flex items-center gap-2 min-w-[250px] animate-fade-in ${toast.type === 'error'
-              ? 'bg-red-500/10 border-red-500/20 text-red-400'
-              : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+              ? 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-950 dark:border-blue-400 dark:text-blue-300'
+              : 'bg-emerald-100 border-emerald-500 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-400 dark:text-emerald-300'
               }`}
           >
             <span>{toast.type === 'error' ? '⚠️' : '✅'}</span>

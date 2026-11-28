@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 
 const generateToken = (user) => {
   return jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'cab_booking_jwt_secret_key_12345!', {
-    expiresIn: '30d'
+    expiresIn: '2d'
   });
 };
 
